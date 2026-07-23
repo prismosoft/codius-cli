@@ -1,5 +1,49 @@
 import { Config } from "effect"
 
+const codiusCompatibilityKeys = [
+  "AUTO_HEAP_SNAPSHOT",
+  "GIT_BASH_PATH",
+  "CONFIG",
+  "CONFIG_CONTENT",
+  "CONFIG_DIR",
+  "DISABLE_AUTOUPDATE",
+  "ALWAYS_NOTIFY_UPDATE",
+  "DISABLE_PRUNE",
+  "DISABLE_TERMINAL_TITLE",
+  "SHOW_TTFD",
+  "DISABLE_AUTOCOMPACT",
+  "DISABLE_MODELS_FETCH",
+  "DISABLE_MOUSE",
+  "DISABLE_FFF",
+  "FAKE_VCS",
+  "SERVER_PASSWORD",
+  "SERVER_USERNAME",
+  "EXPERIMENTAL",
+  "EXPERIMENTAL_FILEWATCHER",
+  "EXPERIMENTAL_DISABLE_FILEWATCHER",
+  "EXPERIMENTAL_DISABLE_COPY_ON_SELECT",
+  "EXPERIMENTAL_WORKSPACES",
+  "EXPERIMENTAL_REFERENCES",
+  "MODELS_URL",
+  "MODELS_PATH",
+  "DB",
+  "WORKSPACE_ID",
+  "DISABLE_PROJECT_CONFIG",
+  "TUI_CONFIG",
+  "PURE",
+  "PERMISSION",
+  "PLUGIN_META_FILE",
+  "CLIENT",
+] as const
+
+for (const suffix of codiusCompatibilityKeys) {
+  const codiusKey = `CODIUS_${suffix}`
+  const opencodeKey = `OPENCODE_${suffix}`
+  if (process.env[opencodeKey] === undefined && process.env[codiusKey] !== undefined) {
+    process.env[opencodeKey] = process.env[codiusKey]
+  }
+}
+
 export function truthy(key: string) {
   const value = process.env[key]?.toLowerCase()
   return value === "true" || value === "1"
