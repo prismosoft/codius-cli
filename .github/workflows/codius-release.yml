@@ -1,0 +1,116 @@
+name: Codius CLI release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the leading v"
+        required: true
+        type: string
+      prerelease:
+        description: "Publish as a prerelease"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: codius-cli-release-${{ github.ref }}-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build and publish native Codius CLI archives
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release version: $VERSION" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build all native targets
+        env:
+          OPENCODE_VERSION: ${{ steps.version.outputs.version }}
+          OPENCODE_CHANNEL: latest
+        run: bun run --cwd packages/opencode script/build.ts
+
+      - name: Create Codius release archives
+        shell: python
+        run: |
+          from pathlib import Path
+          import shutil
+
+          dist = Path("packages/opencode/dist")
+          release = Path("release-assets")
+          release.mkdir(parents=True, exist_ok=True)
+
+          targets = sorted(path for path in dist.iterdir() if path.is_dir() and path.name.startswith("opencode-"))
+          if not targets:
+              raise SystemExit("No native targets were produced")
+
+          for target in targets:
+              binary_dir = target / "bin"
+              expected = binary_dir / ("codius.exe" if "windows" in target.name else "codius")
+              if not expected.is_file():
+                  raise SystemExit(f"Missing Codius binary: {expected}")
+
+              public_name = target.name.replace("opencode-", "codius-", 1)
+              fmt = "zip" if "windows" in target.name or "darwin" in target.name else "gztar"
+              archive_base = release / public_name
+              shutil.make_archive(str(archive_base), fmt, root_dir=binary_dir)
+
+          print("\n".join(str(path) for path in sorted(release.iterdir())))
+
+      - name: Smoke-test the Linux CLI
+        run: |
+          set -euo pipefail
+          chmod +x packages/opencode/dist/opencode-linux-x64/bin/codius
+          packages/opencode/dist/opencode-linux-x64/bin/codius --version
+          packages/opencode/dist/opencode-linux-x64/bin/codius acp --help
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || contains(steps.version.outputs.version, '-') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-assets/* --clobber
+            exit 0
+          fi
+
+          args=(release create "$TAG" release-assets/* --target "$GITHUB_SHA" --title "Codius CLI $VERSION" --generate-notes)
+          if [[ "$PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+          gh "${args[@]}"
