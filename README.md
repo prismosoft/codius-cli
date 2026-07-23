@@ -1,129 +1,239 @@
 <p align="center">
-  <a href="https://opencode.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="OpenCode logo">
-    </picture>
+  <a href="https://codius.ai">
+    <img src="assets/codius-logo.svg" alt="Codius" width="360" />
   </a>
 </p>
-<p align="center">The open source AI coding agent.</p>
-<p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/opencode-ai"><img alt="npm" src="https://img.shields.io/npm/v/opencode-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
+
+<p align="center"><strong>The open-source coding agent for Codius models and every provider you already use.</strong></p>
 
 <p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
-  <a href="README.ko.md">한국어</a> |
-  <a href="README.de.md">Deutsch</a> |
-  <a href="README.es.md">Español</a> |
-  <a href="README.fr.md">Français</a> |
-  <a href="README.it.md">Italiano</a> |
-  <a href="README.da.md">Dansk</a> |
-  <a href="README.ja.md">日本語</a> |
-  <a href="README.pl.md">Polski</a> |
-  <a href="README.ru.md">Русский</a> |
-  <a href="README.bs.md">Bosanski</a> |
-  <a href="README.ar.md">العربية</a> |
-  <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a> |
-  <a href="README.th.md">ไทย</a> |
-  <a href="README.tr.md">Türkçe</a> |
-  <a href="README.uk.md">Українська</a> |
-  <a href="README.bn.md">বাংলা</a> |
-  <a href="README.gr.md">Ελληνικά</a> |
-  <a href="README.vi.md">Tiếng Việt</a>
+  <a href="https://github.com/prismosoft/codius-cli/actions"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/prismosoft/codius-cli/publish.yml?style=flat-square&branch=dev" /></a>
+  <a href="https://github.com/prismosoft/codius-cli/blob/dev/LICENSE"><img alt="License" src="https://img.shields.io/github/license/prismosoft/codius-cli?style=flat-square" /></a>
 </p>
 
-[![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
+# Codius CLI
 
----
+Codius CLI is a terminal coding agent derived from [OpenCode](https://github.com/anomalyco/opencode). It keeps OpenCode's agent loop, terminal UI, tools, sessions, MCP support, and broad provider ecosystem while making **Codius the first-party default provider**.
 
-### Installation
-
-```bash
-# YOLO
-curl -fsSL https://opencode.ai/install | bash
-
-# Package managers
-npm i -g opencode-ai@latest        # or bun/pnpm/yarn
-scoop install opencode             # Windows
-choco install opencode             # Windows
-brew install anomalyco/tap/opencode # macOS and Linux (recommended, always up to date)
-brew install opencode              # macOS and Linux (official brew formula, updated less)
-sudo pacman -S opencode            # Arch Linux (Stable)
-paru -S opencode-bin               # Arch Linux (Latest from AUR)
-mise use -g opencode               # Any OS
-nix run nixpkgs#opencode           # or github:anomalyco/opencode for latest dev branch
-```
-
-> [!TIP]
-> Remove versions older than 0.1.x before installing.
-
-### Desktop App (BETA)
-
-OpenCode is also available as a desktop application. Download directly from the [releases page](https://github.com/anomalyco/opencode/releases) or [opencode.ai/download](https://opencode.ai/download).
-
-| Platform              | Download                           |
-| --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `opencode-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `opencode-desktop-mac-x64.dmg`     |
-| Windows               | `opencode-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
+The executable is:
 
 ```bash
-# macOS (Homebrew)
-brew install --cask opencode-desktop
-# Windows (Scoop)
-scoop bucket add extras; scoop install extras/opencode-desktop
+codius
 ```
 
-#### Installation Directory
-
-The install script respects the following priority order for the installation path:
-
-1. `$OPENCODE_INSTALL_DIR` - Custom installation directory
-2. `$XDG_BIN_DIR` - XDG Base Directory Specification compliant path
-3. `$HOME/bin` - Standard user binary directory (if it exists or can be created)
-4. `$HOME/.opencode/bin` - Default fallback
+The Agent Client Protocol entry point used by Codius Desktop is:
 
 ```bash
-# Examples
-OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
+codius acp
 ```
 
-### Agents
+## Product architecture
 
-OpenCode includes two built-in agents you can switch between with the `Tab` key.
+```text
+Codius Coding Plans
+        │
+        ▼
+Codius API — OpenAI-compatible inference
+        ▲
+        │
+Codius CLI — local coding agent and ACP server
+        ▲
+        │
+Codius Desktop — visual workspace, browser, terminal, Git and worktrees
+```
 
-- **build** - Default, full-access agent for development work
-- **plan** - Read-only agent for analysis and code exploration
-  - Denies file edits by default
-  - Asks permission before running bash commands
-  - Ideal for exploring unfamiliar codebases or planning changes
+Codius CLI runs locally. File access, shell commands, Git operations, MCP tools, and agent sessions remain on the user's machine. Model requests are sent to the selected provider.
 
-Also included is a **general** subagent for complex searches and multistep tasks.
-This is used internally and can be invoked using `@general` in messages.
+## Codius endpoints
 
-Learn more about [agents](https://opencode.ai/docs/agents).
+| Environment | Website | OpenAI-compatible API |
+|---|---|---|
+| Development | `https://dev.codius.dev` | `https://devapi.codius.dev/v1` |
+| Production | `https://codius.ai` | `https://api.codius.ai/v1` |
 
-### Documentation
+Development and prerelease builds default to the development environment. Stable releases default to production. Every endpoint can be overridden with environment variables.
 
-For more info on how to configure OpenCode, [**head over to our docs**](https://opencode.ai/docs).
+## Installation
 
-### Contributing
+Release installers will be published from this repository. During development, build from source:
 
-If you're interested in contributing to OpenCode, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
+```bash
+git clone https://github.com/prismosoft/codius-cli.git
+cd codius-cli
+git checkout dev
+bun install
+bun run --cwd packages/opencode build --single
+```
 
-### Building on OpenCode
+The generated executable is named `codius`.
 
-If you are working on a project that's related to OpenCode and is using "opencode" as part of its name, for example "opencode-dashboard" or "opencode-mobile", please add a note to your README to clarify that it is not built by the OpenCode team and is not affiliated with us in any way.
+Once releases are enabled, the supported installer is:
 
----
+```bash
+curl -fsSL https://raw.githubusercontent.com/prismosoft/codius-cli/dev/install | bash
+```
 
-**Join our community** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+## Connect Codius
+
+Create an API key in the Codius dashboard, then use either the interactive provider dialog or an environment variable.
+
+### Interactive
+
+Start Codius:
+
+```bash
+codius
+```
+
+Open `/connect`, select **Codius**, and paste the API key. The credential is stored locally with the same protected credential store used by the upstream agent.
+
+### Headless, CI, or Codius Desktop
+
+```bash
+export CODIUS_API_KEY="codius_..."
+codius
+```
+
+PowerShell:
+
+```powershell
+$env:CODIUS_API_KEY = "codius_..."
+codius
+```
+
+## Automatic model catalog
+
+At startup, Codius CLI downloads the current Codius provider block from the public integration endpoint:
+
+```text
+/integrations/opencode/provider.json?variant=recommended
+```
+
+This means the CLI can receive newly qualified Codius models without a binary release. The provider block contains public model metadata only; it does not contain credentials.
+
+The first fresh installation selects a Codius model by default. After a user explicitly selects another provider or model, that preference is retained.
+
+## Provider support
+
+Codius is the default, not the only option. The fork preserves the upstream provider architecture, including API-key providers, subscription-backed providers, custom OpenAI-compatible endpoints, local models, and MCP integrations.
+
+Examples include:
+
+- Codius
+- OpenAI and Codex
+- Anthropic
+- Google and Vertex AI
+- Amazon Bedrock
+- GitHub Copilot
+- OpenRouter
+- xAI
+- Mistral
+- Groq
+- custom OpenAI-compatible providers
+
+Provider availability depends on the relevant account, API key, local runtime, and upstream terms.
+
+## Agent Client Protocol
+
+Codius CLI includes an ACP server:
+
+```bash
+codius acp --cwd /path/to/project
+```
+
+Codius Desktop launches this command and receives:
+
+- streamed assistant and reasoning events;
+- model and mode discovery;
+- session creation, resume, fork, and listing;
+- permission requests;
+- MCP server definitions;
+- tool and file-operation events.
+
+The desktop application can therefore present Codius as a native provider while still using the mature OpenCode-derived agent runtime.
+
+## Configuration
+
+Codius retains OpenCode-compatible project configuration so existing agent configurations remain usable. Internal compatibility names may continue to appear in configuration schemas while the fork is kept mergeable with upstream.
+
+Useful Codius environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `CODIUS_API_KEY` | Codius API key |
+| `CODIUS_ENV` | `development` or `production` |
+| `CODIUS_API_BASE_URL` | Override the inference API base URL |
+| `CODIUS_WEB_BASE_URL` | Override the website/control-plane base URL |
+| `CODIUS_PROVIDER_CONFIG_URL` | Override the public provider-catalog endpoint |
+| `CODIUS_MODEL_CATALOG_VARIANT` | `recommended`, `all`, or `experimental` |
+| `CODIUS_DEFAULT_MODEL` | Prefer a specific Codius model on a fresh install |
+| `CODIUS_DISABLE_PROVIDER_BOOTSTRAP` | Disable automatic Codius provider injection |
+| `CODIUS_DEBUG_BOOTSTRAP` | Print provider-bootstrap diagnostics |
+
+The following upstream-compatible variables remain supported where required by inherited internals and plugins:
+
+```text
+OPENCODE_CONFIG
+OPENCODE_CONFIG_CONTENT
+OPENCODE_CONFIG_DIR
+OPENCODE_PERMISSION
+```
+
+## Development
+
+Requirements:
+
+- Bun matching the version in the root `package.json`
+- Git
+- ripgrep
+
+Common commands:
+
+```bash
+bun install
+bun run dev
+bun run typecheck
+bun run --cwd packages/opencode test
+bun run --cwd packages/opencode build --single
+```
+
+Test the Codius provider against development:
+
+```bash
+CODIUS_ENV=development \
+CODIUS_API_KEY="codius_..." \
+bun run dev
+```
+
+Test ACP locally:
+
+```bash
+CODIUS_ENV=development \
+CODIUS_API_KEY="codius_..." \
+bun run --cwd packages/opencode src/index.ts acp --cwd "$PWD"
+```
+
+## Release and branding policy
+
+Public artifacts from this fork must use:
+
+- product name: **Codius CLI**;
+- executable: **`codius`**;
+- repository: `prismosoft/codius-cli`;
+- production website: `https://codius.ai`;
+- production API: `https://api.codius.ai/v1`;
+- development website: `https://dev.codius.dev`;
+- development API: `https://devapi.codius.dev/v1`.
+
+Runware credentials and routing identifiers belong only in Codius server infrastructure. They must never be embedded in this repository, a release artifact, a desktop application, or a local configuration template.
+
+## Upstream and license
+
+Codius CLI is based on OpenCode and preserves its MIT license and required notices. It is maintained independently by Prismosoft and is not produced by or affiliated with the OpenCode maintainers.
+
+Generic fixes should be contributed upstream when practical so this fork remains maintainable. Codius-specific branding, model bootstrap, account integration, and release infrastructure stay in this repository.
+
+## Related projects
+
+- [Codius](https://github.com/prismosoft/codius) — plans, dashboard, model catalog, metering, billing, and OpenAI-compatible API
+- [Codius Desktop](https://github.com/prismosoft/codius-desktop) — desktop workspace that launches `codius acp`
