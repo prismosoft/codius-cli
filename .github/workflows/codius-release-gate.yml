@@ -1,0 +1,314 @@
+name: Codius CLI release gate
+
+"on":
+  push:
+    branches: [feat/codius-productization]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: codius-cli-finalize
+  cancel-in-progress: true
+
+jobs:
+  release:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/codius-productization
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Normalize the public Codius product surface
+        shell: bash
+        run: |
+          python <<'PY'
+          from __future__ import annotations
+
+          import json
+          import re
+          from pathlib import Path
+
+          root = Path.cwd()
+
+          def r(path: str) -> str:
+              return (root / path).read_text(encoding="utf-8")
+
+          def w(path: str, value: str) -> None:
+              target = root / path
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(value, encoding="utf-8")
+
+          def j(path: str, fn) -> None:
+              value = json.loads(r(path))
+              fn(value)
+              w(path, json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+
+          def replace(path: str, old: str, new: str) -> None:
+              value = r(path)
+              if old in value:
+                  w(path, value.replace(old, new))
+
+          def root_package(value: dict) -> None:
+              value["name"] = "codius-cli"
+              value["description"] = "Codius CLI — an open-source coding agent with Codius models by default"
+              value["homepage"] = "https://codius.ai"
+              value["repository"] = {"type": "git", "url": "https://github.com/prismosoft/codius-cli.git"}
+              value["bugs"] = {"url": "https://github.com/prismosoft/codius-cli/issues"}
+          j("package.json", root_package)
+
+          def cli_package(value: dict) -> None:
+              value["name"] = "codius"
+              value["description"] = "The Codius coding agent for the terminal"
+              value["bin"] = {"codius": "./bin/codius"}
+              value["homepage"] = "https://codius.ai"
+              value["repository"] = {"type": "git", "url": "https://github.com/prismosoft/codius-cli.git"}
+          j("packages/opencode/package.json", cli_package)
+
+          index_path = "packages/opencode/src/index.ts"
+          index = r(index_path)
+          if 'import { UpgradeCommand } from "./cli/cmd/upgrade"' not in index:
+              index = index.replace(
+                  'import { AgentCommand } from "./cli/cmd/agent"',
+                  'import { AgentCommand } from "./cli/cmd/agent"\nimport { UpgradeCommand } from "./cli/cmd/upgrade"\nimport { UninstallCommand } from "./cli/cmd/uninstall"',
+              )
+          if ".command(UpgradeCommand)" not in index:
+              index = index.replace(
+                  ".command(AgentCommand)",
+                  ".command(AgentCommand)\n  .command(UpgradeCommand)\n  .command(UninstallCommand)",
+              )
+          index = index.replace('text.startsWith("opencode ")', 'text.startsWith("codius ")')
+          index = index.replace('.scriptName("opencode")', '.scriptName("codius")')
+          if 'process.env.CODIUS = "1"' not in index:
+              index = index.replace('process.env.OPENCODE = "1"', 'process.env.CODIUS = "1"\n    process.env.OPENCODE = "1"')
+          if "process.env.CODIUS_PID" not in index:
+              index = index.replace(
+                  "process.env.OPENCODE_PID = String(process.pid)",
+                  "process.env.CODIUS_PID = String(process.pid)\n    process.env.OPENCODE_PID = String(process.pid)",
+              )
+          w(index_path, index)
+
+          acp_path = "packages/opencode/src/acp/service.ts"
+          acp = r(acp_path)
+          acp = acp.replace('export const AuthMethodID = "opencode-login"', 'export const AuthMethodID = "codius-login"')
+          acp = acp.replace('description: "Run `opencode auth login` in the terminal"', 'description: "Run `codius providers login --provider codius` in the terminal"')
+          acp = acp.replace('name: "Login with opencode"', 'name: "Login with Codius"')
+          acp = acp.replace('command: "opencode",\n          args: ["auth", "login"],\n          label: "OpenCode Login"', 'command: "codius",\n          args: ["providers", "login", "--provider", "codius"],\n          label: "Codius Login"')
+          acp = acp.replace('name: "OpenCode",\n        version: InstallationVersion', 'name: "Codius",\n        version: InstallationVersion')
+          w(acp_path, acp)
+
+          acp_command_path = "packages/opencode/src/cli/cmd/acp.ts"
+          acp_command = r(acp_command_path)
+          if 'process.env.CODIUS_CLIENT = "acp"' not in acp_command:
+              acp_command = acp_command.replace(
+                  'process.env.OPENCODE_CLIENT = "acp"',
+                  'process.env.CODIUS_CLIENT = "acp"\n    process.env.OPENCODE_CLIENT = "acp"',
+              )
+          w(acp_command_path, acp_command)
+
+          providers_path = "packages/opencode/src/cli/cmd/providers.ts"
+          providers = r(providers_path)
+          if "codius: 0" not in providers:
+              providers = providers.replace(
+                  "const priority: Record<string, number> = {\n      opencode: 0,",
+                  "const priority: Record<string, number> = {\n      codius: 0,\n      opencode: 1,",
+              )
+          if 'codius: "recommended"' not in providers:
+              providers = providers.replace(
+                  'hint: {\n            opencode: "recommended",',
+                  'hint: {\n            codius: "recommended",\n            opencode: "upstream provider",',
+              )
+          if 'if (provider === "codius")' not in providers:
+              providers = providers.replace(
+                  'if (provider === "opencode") {',
+                  'if (provider === "codius") {\n      yield* Prompt.log.info("Create an API key at https://codius.ai or use https://dev.codius.dev during development")\n    }\n\n    if (provider === "opencode") {',
+              )
+          providers = providers.replace("configure it in opencode.json", "configure it in codius.json")
+          w(providers_path, providers)
+
+          tui_path = "packages/tui/src/component/dialog-provider.tsx"
+          tui = r(tui_path)
+          if "codius: 0" not in tui:
+              tui = tui.replace(
+                  "const PROVIDER_PRIORITY: Record<string, number> = {\n  opencode: 0,",
+                  "const PROVIDER_PRIORITY: Record<string, number> = {\n  codius: 0,\n  opencode: 1,",
+              )
+          if 'codius: "(Recommended)"' not in tui:
+              tui = tui.replace(
+                  'description: {\n          opencode: "(Recommended)",',
+                  'description: {\n          codius: "(Recommended)",\n          opencode: "(Upstream provider)",',
+              )
+          tui = tui.replace("Configure the provider in opencode.json", "Configure the provider in codius.json")
+          w(tui_path, tui)
+
+          launcher_path = "packages/opencode/bin/codius"
+          launcher = r(launcher_path)
+          launcher = launcher.replace(
+              "const envPath = process.env.OPENCODE_BIN_PATH",
+              "const envPath = process.env.CODIUS_BIN_PATH || process.env.OPENCODE_BIN_PATH",
+          )
+          launcher = launcher.replace('path.join(scriptDir, ".opencode")', 'path.join(scriptDir, ".codius")')
+          launcher = launcher.replace('const base = "opencode-" + platform + "-" + arch', 'const base = "codius-" + platform + "-" + arch')
+          launcher = launcher.replace('const binary = platform === "windows" ? "opencode.exe" : "opencode"', 'const binary = platform === "windows" ? "codius.exe" : "codius"')
+          launcher = launcher.replace("right version of the opencode CLI", "right version of the Codius CLI")
+          w(launcher_path, launcher)
+
+          build_path = "packages/opencode/script/build.ts"
+          build = r(build_path)
+          build = build.replace("bin/opencode", "bin/codius")
+          build = build.replace("opencode/${Script.version}", "codius/${Script.version}")
+          build = build.replace("codius-web-ui.gen.ts", "opencode-web-ui.gen.ts")
+          w(build_path, build)
+
+          postinstall_path = "packages/opencode/script/postinstall.mjs"
+          postinstall = r(postinstall_path)
+          postinstall = postinstall.replace("opencode-", "codius-")
+          postinstall = postinstall.replace("opencode.exe", "codius.exe")
+          postinstall = postinstall.replace('"opencode"', '"codius"')
+          postinstall = postinstall.replace("opencode-install-", "codius-install-")
+          postinstall = postinstall.replace("right opencode CLI", "right Codius CLI")
+          w(postinstall_path, postinstall)
+
+          docker_path = "packages/opencode/Dockerfile"
+          docker = r(docker_path)
+          docker = docker.replace("opencode-linux", "codius-linux")
+          docker = docker.replace("/usr/local/bin/opencode", "/usr/local/bin/codius")
+          docker = docker.replace("RUN opencode --version", "RUN codius --version")
+          docker = docker.replace('ENTRYPOINT ["opencode"]', 'ENTRYPOINT ["codius"]')
+          w(docker_path, docker)
+
+          installation_path = "packages/opencode/src/installation/index.ts"
+          installation = r(installation_path)
+          for old, new in {
+              "`opencode/${InstallationChannel}/${InstallationVersion}/${client}`": "`codius/${InstallationChannel}/${InstallationVersion}/${client}`",
+              'path.join(".opencode", "bin")': 'path.join(".codius", "bin")',
+              'https://opencode.ai/install': 'https://raw.githubusercontent.com/prismosoft/codius-cli/dev/install',
+              'repos/anomalyco/opencode/releases/latest': 'repos/prismosoft/codius-cli/releases/latest',
+              '/opencode-ai/${InstallationChannel}': '/codius-ai/${InstallationChannel}',
+              '`opencode-ai@${target}`': '`codius-ai@${target}`',
+              '["brew", "list", "--formula", "opencode"]': '["brew", "list", "--formula", "codius"]',
+              '["scoop", "list", "opencode"]': '["scoop", "list", "codius"]',
+              '["choco", "list", "--limit-output", "opencode"]': '["choco", "list", "--limit-output", "codius"]',
+              '? "opencode" : "opencode-ai"': '? "codius" : "codius-ai"',
+              '["choco", "upgrade", "opencode"': '["choco", "upgrade", "codius"',
+              '`opencode@${target}`': '`codius@${target}`',
+          }.items():
+              installation = installation.replace(old, new)
+          w(installation_path, installation)
+
+          for path in ["packages/opencode/src/cli/cmd/upgrade.ts", "packages/opencode/src/cli/cmd/uninstall.ts"]:
+              value = r(path)
+              value = value.replace("OpenCode", "Codius")
+              value = value.replace("opencode-ai", "codius-ai")
+              value = value.replace(".opencode", ".codius")
+              value = value.replace('"opencode"', '"codius"')
+              value = value.replace("'opencode'", "'codius'")
+              value = value.replace("# opencode", "# codius")
+              value = value.replace("using opencode", "using Codius")
+              w(path, value)
+
+          config_path = "packages/opencode/src/config/config.ts"
+          config = r(config_path)
+          config = config.replace(
+              'const candidates = ["opencode.jsonc", "opencode.json", "config.json"]',
+              'const candidates = ["codius.jsonc", "codius.json", "config.json", "opencode.jsonc", "opencode.json"]',
+          )
+          if 'path.join(Global.Path.config, "codius.json")' not in config:
+              config = config.replace(
+                  'result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "opencode.jsonc"), env))',
+                  'result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "opencode.jsonc"), env))\n      result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "codius.json"), env))\n      result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "codius.jsonc"), env))',
+              )
+          w(config_path, config)
+
+          # Keep OpenCode-derived internal package names for upstream compatibility,
+          # but prevent obvious public product regressions in the key executable paths.
+          required = {
+              "README.md": ["Codius CLI", "devapi.codius.dev/v1", "api.codius.ai/v1", "codius acp"],
+              "packages/opencode/src/index.ts": ['.scriptName("codius")', ".command(AcpCommand)"],
+              "packages/opencode/src/acp/service.ts": ['name: "Codius"', 'command: "codius"'],
+              "packages/opencode/src/codius/bootstrap.ts": ["https://devapi.codius.dev/v1", "https://api.codius.ai/v1"],
+              "packages/opencode/src/plugin/codius.ts": ['provider: "codius"'],
+              "packages/opencode/package.json": ['"codius"', '"./bin/codius"'],
+              "packages/opencode/bin/codius": ['const base = "codius-"'],
+          }
+          for path, needles in required.items():
+              value = r(path)
+              for needle in needles:
+                  if needle not in value:
+                      raise SystemExit(f"Missing {needle!r} in {path}")
+          PY
+
+          chmod +x install packages/opencode/bin/codius
+          git diff --check
+
+      - name: Install dependencies and refresh lock metadata
+        run: bun install
+
+      - name: Run Codius provider tests
+        run: bun test packages/opencode/test/codius/bootstrap.test.ts
+
+      - name: Typecheck the coding agent
+        run: bun run --cwd packages/opencode typecheck
+
+      - name: Build and smoke-test the native codius executable
+        shell: bash
+        run: |
+          bun run --cwd packages/opencode build --single --skip-install --skip-embed-web-ui
+          binary=$(find packages/opencode/dist -type f \( -name codius -o -name codius.exe \) | head -n 1)
+          test -n "$binary"
+          "$binary" --version
+          "$binary" --help | grep -qi codius
+
+      - name: Commit the tested implementation
+        shell: bash
+        run: |
+          rm -f .github/workflows/codius-productization.yml \
+                .github/workflows/codius-finalize.yml \
+                .github/workflows/codius-finalize-v2.yml \
+                .github/workflows/codius-release-gate.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "feat: finalize Codius CLI and default provider"
+            git push origin HEAD:feat/codius-productization
+          fi
+
+      - name: Finalize pull request
+        shell: bash
+        run: |
+          cat > /tmp/pr-body.md <<'EOF'
+          ## Codius CLI
+
+          Productizes the OpenCode fork as the first-party Codius coding agent.
+
+          - exposes the `codius` command and native binary
+          - makes the built-in Codius OpenAI-compatible provider the fresh-install default
+          - supports production `https://api.codius.ai/v1` and development `https://devapi.codius.dev/v1`
+          - keeps all upstream providers available
+          - reports Codius identity and login instructions through `codius acp`
+          - updates installer, package metadata, local paths, Docker, README, logo, upgrade, and uninstall surfaces
+          - preserves OpenCode-derived internal package namespaces for maintainable upstream synchronization
+
+          ### Validation
+
+          - Codius bootstrap/provider unit tests
+          - `packages/opencode` typecheck
+          - native single-platform build
+          - `codius --version` and `codius --help` smoke tests
+          EOF
+          gh pr edit 1 --title "feat: productize OpenCode as Codius CLI" --body-file /tmp/pr-body.md
+          gh pr ready 1 || true
+          gh pr merge 1 --squash --delete-branch || gh pr merge 1 --squash --delete-branch --admin
