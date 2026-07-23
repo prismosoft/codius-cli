@@ -21,6 +21,8 @@ import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import * as ACPError from "./error"
 import * as ACPService from "./service"
 
+const CODIUS_AUTH_METHOD_ID = "codius-login"
+
 export function init({ sdk: _sdk }: { sdk: OpencodeClient }) {
   return {
     create: (connection: AgentSideConnection) => {
@@ -32,12 +34,40 @@ export function init({ sdk: _sdk }: { sdk: OpencodeClient }) {
 export class Agent implements ACPAgent {
   constructor(private readonly service: ACPService.Interface) {}
 
-  initialize(params: InitializeRequest) {
-    return run(this.service.initialize(params))
+  async initialize(params: InitializeRequest) {
+    const response = await run(this.service.initialize(params))
+    return {
+      ...response,
+      agentInfo: {
+        ...response.agentInfo,
+        name: "Codius",
+      },
+      authMethods: response.authMethods?.map((method) => ({
+        ...method,
+        id: CODIUS_AUTH_METHOD_ID,
+        name: "Login with Codius",
+        description: "Connect a Codius API key from the terminal",
+        _meta:
+          params.clientCapabilities?._meta?.["terminal-auth"] === true
+            ? {
+                ...method._meta,
+                "terminal-auth": {
+                  command: "codius",
+                  args: ["providers", "login", "--provider", "codius"],
+                  label: "Codius Login",
+                },
+              }
+            : method._meta,
+      })),
+    }
   }
 
   authenticate(params: AuthenticateRequest) {
-    return run(this.service.authenticate(params))
+    const normalized =
+      params.methodId === CODIUS_AUTH_METHOD_ID
+        ? { ...params, methodId: ACPService.AuthMethodID }
+        : params
+    return run(this.service.authenticate(normalized))
   }
 
   newSession(params: NewSessionRequest) {
