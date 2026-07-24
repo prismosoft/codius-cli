@@ -43,7 +43,7 @@ export class Agent implements ACPAgent {
       agentInfo: {
         ...response.agentInfo,
         name: "Codius",
-        version: response.agentInfo.version ?? InstallationVersion ?? "0.0.0",
+        version: response.agentInfo?.version ?? InstallationVersion ?? "0.0.0",
       },
       authMethods: response.authMethods?.map((method) => ({
         ...method,
