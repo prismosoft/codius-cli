@@ -4,6 +4,8 @@ import { RunCommand } from "./cli/cmd/run"
 import { GenerateCommand } from "./cli/cmd/generate"
 import { ProvidersCommand } from "./cli/cmd/providers"
 import { AgentCommand } from "./cli/cmd/agent"
+import { UpgradeCommand } from "./cli/cmd/upgrade"
+import { UninstallCommand } from "./cli/cmd/uninstall"
 import { ModelsCommand } from "./cli/cmd/models"
 import { UI } from "./cli/ui"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
@@ -32,14 +34,22 @@ const args = hideBin(process.argv)
 
 await bootstrapCodiusProvider(args)
 
+function brandCliText(out: string): string {
+  return out
+    .replaceAll("OPENCODE_", "CODIUS_")
+    .replace(/\bOpenCode\b/g, "Codius")
+    .replace(/\bopencode\b/g, "codius")
+}
+
 function show(out: string) {
-  const text = out.trimStart()
+  const branded = brandCliText(out)
+  const text = branded.trimStart()
   if (!text.startsWith("codius ")) {
     process.stderr.write(UI.logo() + EOL + EOL)
     process.stderr.write(text + EOL)
     return
   }
-  process.stderr.write(out)
+  process.stderr.write(branded)
 }
 
 const cli = yargs(args)
@@ -88,6 +98,8 @@ const cli = yargs(args)
   .command(DebugCommand)
   .command(ProvidersCommand)
   .command(AgentCommand)
+  .command(UpgradeCommand)
+  .command(UninstallCommand)
   .command(ServeCommand)
   .command(WebCommand)
   .command(ModelsCommand)
