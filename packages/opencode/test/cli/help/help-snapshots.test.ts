@@ -42,7 +42,7 @@ function normalize(text: string): string {
   })
   return normalized
     .replaceAll("CODIUS_", "OPENCODE_")
-    .replace(/\bCodius\b/g, "OpenCode")
+    .replace(/\bCodius\b/g, "opencode")
     .replace(/\bcodius\b/g, "opencode")
 }
 
