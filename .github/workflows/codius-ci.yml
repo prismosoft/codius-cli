@@ -32,7 +32,7 @@ jobs:
           files=(README.md package.json packages/core/src/flag/flag.ts packages/core/src/global.ts packages/opencode/package.json packages/opencode/script/build.ts packages/opencode/src/index.ts packages/opencode/src/cli/ui.ts packages/opencode/src/codius/bootstrap.ts packages/opencode/src/plugin/codius.ts packages/opencode/src/plugin/index.ts packages/opencode/src/acp/service.ts packages/opencode/test/codius/bootstrap.test.ts)
           existing=(); for f in "${files[@]}"; do [[ -f "$f" ]] && existing+=("$f"); done
           bunx prettier --check "${existing[@]}"
-      - run: bun test packages/opencode/test/codius/bootstrap.test.ts
+      - run: bun test --cwd packages/opencode test/codius/bootstrap.test.ts
       - run: bun run --cwd packages/opencode typecheck
       - run: bun run --cwd packages/opencode build --single --skip-install --skip-embed-web-ui
       - name: Smoke-test Codius and ACP commands
