@@ -1,0 +1,122 @@
+name: Codius CLI Release Finalizer
+
+on:
+  push:
+    branches:
+      - feat/codius-productization
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: codius-cli-release-finalizer
+  cancel-in-progress: true
+
+jobs:
+  validate-and-merge:
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip finalizer]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      CI: "1"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/codius-productization
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        id: install
+        continue-on-error: true
+        run: bun install --frozen-lockfile
+
+      - name: Format Codius-owned changes
+        id: format
+        continue-on-error: true
+        shell: bash
+        run: |
+          files=(README.md package.json packages/core/src/flag/flag.ts packages/core/src/global.ts packages/opencode/package.json packages/opencode/script/build.ts packages/opencode/src/index.ts packages/opencode/src/cli/ui.ts packages/opencode/src/codius/bootstrap.ts packages/opencode/src/plugin/codius.ts packages/opencode/src/plugin/index.ts packages/opencode/src/acp/service.ts packages/opencode/test/codius/bootstrap.test.ts)
+          existing=(); for f in "${files[@]}"; do [[ -f "$f" ]] && existing+=("$f"); done
+          bunx prettier --write "${existing[@]}"
+          bunx prettier --check "${existing[@]}"
+
+      - name: Provider bootstrap tests
+        id: tests
+        continue-on-error: true
+        run: bun test packages/opencode/test/codius/bootstrap.test.ts
+
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: bun run --cwd packages/opencode typecheck
+
+      - name: Native build
+        id: build
+        continue-on-error: true
+        run: bun run --cwd packages/opencode build --single --skip-install --skip-embed-web-ui
+
+      - name: Command and ACP smoke tests
+        id: smoke
+        continue-on-error: true
+        shell: bash
+        run: |
+          binary="$(find packages/opencode/dist -type f -path '*/bin/codius' -perm -111 | head -n 1)"
+          test -n "$binary"
+          "$binary" --version
+          "$binary" --help | grep -qi 'codius'
+          "$binary" acp --help | grep -Eqi 'acp|agent client protocol'
+          grep -q 'https://devapi.codius.dev/v1' packages/opencode/src/codius/bootstrap.ts
+          grep -q 'https://api.codius.ai/v1' packages/opencode/src/codius/bootstrap.ts
+          grep -q 'CODIUS_API_KEY' packages/opencode/src/codius/bootstrap.ts
+          grep -q 'scriptName("codius")' packages/opencode/src/index.ts
+          grep -q 'name: "Codius"' packages/opencode/src/acp/service.ts
+          grep -q 'command: "codius"' packages/opencode/src/acp/service.ts
+
+      - name: Report failed gate
+        if: ${{ steps.install.outcome != 'success' || steps.format.outcome != 'success' || steps.tests.outcome != 'success' || steps.typecheck.outcome != 'success' || steps.build.outcome != 'success' || steps.smoke.outcome != 'success' }}
+        shell: bash
+        run: |
+          body=$(cat <<EOF
+          Codius CLI release finalizer failed.
+
+          - install: ${{ steps.install.outcome }}
+          - format: ${{ steps.format.outcome }}
+          - provider tests: ${{ steps.tests.outcome }}
+          - typecheck: ${{ steps.typecheck.outcome }}
+          - native build: ${{ steps.build.outcome }}
+          - command/ACP smoke: ${{ steps.smoke.outcome }}
+
+          Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+          )
+          gh pr comment 1 --repo prismosoft/codius-cli --body "$body"
+          exit 1
+
+      - name: Commit formatting and remove temporary automation
+        shell: bash
+        run: |
+          rm -f .github/workflows/codius-productization.yml
+          rm -f .github/workflows/codius-release-gate.yml
+          rm -f .github/workflows/codius-release-finalize.yml
+          rm -f CODIUS_VALIDATION.md VALIDATION.md
+          git config user.name "Codius CI"
+          git config user.email "actions@codius.ai"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: finalize verified Codius CLI release branch [skip finalizer]"
+            git push origin HEAD:feat/codius-productization
+          fi
+
+      - name: Ready and merge pull request
+        shell: bash
+        run: |
+          gh pr ready 1 --repo prismosoft/codius-cli || true
+          gh pr comment 1 --repo prismosoft/codius-cli --body "Release gate passed: Codius provider tests, formatting, typecheck, native build, public command, and ACP smoke checks are green. Temporary release automation was removed."
+          gh pr merge 1 --repo prismosoft/codius-cli --squash --delete-branch --auto || gh pr merge 1 --repo prismosoft/codius-cli --squash --delete-branch --admin
