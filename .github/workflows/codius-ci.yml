@@ -40,9 +40,15 @@ jobs:
         run: |
           binary="$(find packages/opencode/dist -type f -path '*/bin/codius' -perm -111 | head -n 1)"
           test -n "$binary"
-          "$binary" --version
-          "$binary" --help | grep -qi codius
-          "$binary" acp --help | grep -Eqi 'acp|agent client protocol'
+          # Capture output before grepping: `grep -q` closes the pipe on first
+          # match, which sends the binary EPIPE mid-write and, under `pipefail`,
+          # fails the step even though the command succeeded.
+          version_output="$("$binary" --version)"
+          test -n "$version_output"
+          help_output="$("$binary" --help 2>&1)"
+          grep -qi codius <<<"$help_output"
+          acp_help_output="$("$binary" acp --help 2>&1)"
+          grep -Eqi 'acp|agent client protocol' <<<"$acp_help_output"
       - name: Audit Codius API contract
         shell: bash
         run: |
