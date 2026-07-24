@@ -38,6 +38,12 @@ function normalize(text: string): string {
       // hood). A `[a-z0-9]+` regex would leave uppercase chars trailing.
       [new RegExp(`<TMPDIR>${PATH_SEP}oc-cli-[A-Za-z0-9]+`, "g"), "<HOME>"],
       [/\s+\[string\] \[default: "<HOME>"\]/g, ' [string] [default: "<HOME>"]'],
+      // 2b. A long default (e.g. the `--cwd` tmpdir) widens the annotation
+      //     column for its whole command block, so yargs wraps sibling
+      //     annotations like `--mdns-domain` onto their own right-aligned line
+      //     with an environment-dependent leading-whitespace count. Collapse
+      //     any wrapped annotation-only continuation line to a canonical indent.
+      [/\n +(\[(?:string|boolean|number|array|count)\](?: \[[^\]]*\])?)$/gm, "\n      $1"],
     ],
   })
   return normalized
