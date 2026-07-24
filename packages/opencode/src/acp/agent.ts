@@ -7,6 +7,7 @@ import {
   type CloseSessionRequest,
   type ForkSessionRequest,
   type InitializeRequest,
+  type InitializeResponse,
   type ListSessionsRequest,
   type LoadSessionRequest,
   type NewSessionRequest,
@@ -16,6 +17,7 @@ import {
   type SetSessionModelRequest,
   type SetSessionModeRequest,
 } from "@agentclientprotocol/sdk"
+import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { Effect } from "effect"
 import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import * as ACPError from "./error"
@@ -34,13 +36,14 @@ export function init({ sdk: _sdk }: { sdk: OpencodeClient }) {
 export class Agent implements ACPAgent {
   constructor(private readonly service: ACPService.Interface) {}
 
-  async initialize(params: InitializeRequest) {
+  async initialize(params: InitializeRequest): Promise<InitializeResponse> {
     const response = await run(this.service.initialize(params))
     return {
       ...response,
       agentInfo: {
         ...response.agentInfo,
         name: "Codius",
+        version: response.agentInfo.version ?? InstallationVersion,
       },
       authMethods: response.authMethods?.map((method) => ({
         ...method,
