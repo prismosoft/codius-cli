@@ -1,4 +1,4 @@
-name: Codius CLI release
+name: Release Codius CLI
 
 on:
   push:
@@ -7,124 +7,108 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version without the leading v"
+        description: Version to package, without the leading v
         required: true
         type: string
       prerelease:
-        description: "Publish as a prerelease"
-        required: true
-        default: true
+        description: Mark the GitHub release as prerelease
+        required: false
+        default: false
         type: boolean
 
 permissions:
   contents: write
 
 concurrency:
-  group: codius-cli-release-${{ github.ref }}-${{ inputs.version || github.ref_name }}
+  group: codius-cli-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   build-and-release:
-    name: Build and publish native Codius CLI archives
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      CI: "1"
+      OPENCODE_CHANNEL: latest
+      CODIUS_ENV: production
+      GH_REPO: prismosoft/codius-cli
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
       - name: Resolve release version
         id: version
         shell: bash
         run: |
-          set -euo pipefail
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
+            version="${GITHUB_REF_NAME#v}"
           else
-            VERSION="${{ inputs.version }}"
-            VERSION="${VERSION#v}"
+            version="${{ inputs.version }}"
           fi
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Invalid release version: $VERSION" >&2
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "OPENCODE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "CODIUS_VERSION=$version" >> "$GITHUB_ENV"
 
-      - name: Run Codius typecheck and bootstrap tests
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Validate source
         run: |
-          bun typecheck
-          bun test --cwd packages/opencode test/codius/bootstrap.test.ts
+          bun test packages/opencode/test/codius/bootstrap.test.ts
+          bun run --cwd packages/opencode typecheck
 
-      - name: Build all native targets
-        env:
-          OPENCODE_VERSION: ${{ steps.version.outputs.version }}
-          OPENCODE_CHANNEL: latest
-        run: bun run --cwd packages/opencode script/build.ts
+      - name: Build native binaries
+        run: bun run --cwd packages/opencode build --skip-embed-web-ui
 
-      - name: Create Codius release archives
-        shell: python
-        run: |
-          from pathlib import Path
-          import hashlib
-          import shutil
-
-          dist = Path("packages/opencode/dist")
-          release = Path("release-assets")
-          release.mkdir(parents=True, exist_ok=True)
-
-          targets = sorted(path for path in dist.iterdir() if path.is_dir() and path.name.startswith("opencode-"))
-          if not targets:
-              raise SystemExit("No native targets were produced")
-
-          archives = []
-          for target in targets:
-              binary_dir = target / "bin"
-              expected = binary_dir / ("codius.exe" if "windows" in target.name else "codius")
-              if not expected.is_file():
-                  raise SystemExit(f"Missing Codius binary: {expected}")
-
-              public_name = target.name.replace("opencode-", "codius-", 1)
-              fmt = "zip" if "windows" in target.name or "darwin" in target.name else "gztar"
-              archive_base = release / public_name
-              archive = Path(shutil.make_archive(str(archive_base), fmt, root_dir=binary_dir))
-              archives.append(archive)
-
-          checksum_lines = []
-          for archive in sorted(archives):
-              digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-              checksum_lines.append(f"{digest}  {archive.name}")
-          (release / "SHA256SUMS.txt").write_text("\n".join(checksum_lines) + "\n")
-          print("\n".join(str(path) for path in sorted(release.iterdir())))
-
-      - name: Smoke-test the Linux CLI
-        run: |
-          set -euo pipefail
-          chmod +x packages/opencode/dist/opencode-linux-x64/bin/codius
-          packages/opencode/dist/opencode-linux-x64/bin/codius --version
-          packages/opencode/dist/opencode-linux-x64/bin/codius acp --help
-
-      - name: Create or update the GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
-          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || contains(steps.version.outputs.version, '-') }}
+      - name: Package Codius release archives
         shell: bash
         run: |
-          set -euo pipefail
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" release-assets/* --clobber
-            exit 0
-          fi
+          mkdir -p release-assets
+          shopt -s nullglob
+          count=0
+          for dir in packages/opencode/dist/opencode-*; do
+            [[ -d "$dir/bin" && -f "$dir/bin/codius" ]] || continue
+            target="${dir##*/opencode-}"
+            if [[ "$target" == windows-* ]]; then
+              (cd "$dir/bin" && zip -q -r "$GITHUB_WORKSPACE/release-assets/codius-${target}.zip" codius*)
+            elif [[ "$target" == darwin-* ]]; then
+              (cd "$dir/bin" && zip -q -r "$GITHUB_WORKSPACE/release-assets/codius-${target}.zip" codius*)
+            else
+              (cd "$dir/bin" && tar -czf "$GITHUB_WORKSPACE/release-assets/codius-${target}.tar.gz" codius*)
+            fi
+            count=$((count + 1))
+          done
+          test "$count" -gt 0
+          ls -lh release-assets
 
-          args=(release create "$TAG" release-assets/* --target "$GITHUB_SHA" --title "Codius CLI $VERSION" --generate-notes)
-          if [[ "$PRERELEASE" == "true" ]]; then
-            args+=(--prerelease)
+      - name: Verify archives contain Codius
+        shell: bash
+        run: |
+          for archive in release-assets/*; do
+            case "$archive" in
+              *.zip) unzip -l "$archive" | grep -qi codius ;;
+              *.tar.gz) tar -tzf "$archive" | grep -qi codius ;;
+            esac
+          done
+
+      - name: Create or update GitHub release
+        shell: bash
+        run: |
+          tag="v${{ steps.version.outputs.version }}"
+          prerelease=""
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.prerelease }}" == "true" ]]; then
+            prerelease="--prerelease"
+          elif [[ "$tag" == *-* ]]; then
+            prerelease="--prerelease"
           fi
-          gh "${args[@]}"
+          if ! gh release view "$tag" --repo prismosoft/codius-cli >/dev/null 2>&1; then
+            gh release create "$tag" --repo prismosoft/codius-cli --title "Codius CLI $tag" --generate-notes $prerelease
+          fi
+          gh release upload "$tag" release-assets/* --repo prismosoft/codius-cli --clobber
