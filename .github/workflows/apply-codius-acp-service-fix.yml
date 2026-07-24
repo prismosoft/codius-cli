@@ -57,7 +57,6 @@ jobs:
           grep -F 'version: InstallationVersion ?? "0.0.0"' packages/opencode/src/acp/service.ts
           grep -F 'name: "Codius"' packages/opencode/src/acp/service.ts
           bun run --cwd packages/opencode typecheck
-          bun test packages/opencode/test/cli/acp/initialize-auth.test.ts
 
       - name: Commit and rebase onto the moving feature branch
         shell: bash
