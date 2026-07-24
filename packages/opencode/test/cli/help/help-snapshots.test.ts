@@ -8,15 +8,17 @@
 // diff tells you exactly which command(s) changed.
 //
 // Snapshots are taken at COLUMNS=120 so wrapping is stable across
-// terminal sizes. The default opencode tui command is excluded —
-// `opencode --help` includes an ASCII banner that pulls in the install
+// terminal sizes. The default Codius tui command is excluded —
+// `codius --help` includes an ASCII banner that pulls in the install
 // version (changes per release), so we'd snapshot a moving target.
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
 import { cliIt } from "../../lib/cli-process"
 import { normalizeForSnapshot, PATH_SEP } from "../../lib/snapshot"
 
-// Composes `normalizeForSnapshot` (CRLF + tmpdir) with two help-specific
+const CODIUS_COMMAND_PREFIX = /(^|\n)(\s*)codius(?=\s|$)/g
+
+// Composes `normalizeForSnapshot` (CRLF + tmpdir) with three help-specific
 // rules:
 //
 //   1. The harness's `oc-cli-XXX` subdir under TMPDIR collapses to `<HOME>`.
@@ -26,8 +28,13 @@ import { normalizeForSnapshot, PATH_SEP } from "../../lib/snapshot"
 //      pre-normalized default's character length, so different random home
 //      path widths produce different leading-whitespace counts (or even
 //      line-wraps onto a fresh line on Windows). `\s+` matches both forms.
+//
+//   3. The public executable is asserted as `codius` before we normalize only
+//      command prefixes back to `opencode`. This preserves the large upstream
+//      structural snapshots and keeps future upstream merges reviewable while
+//      still failing immediately if the fork emits the wrong executable name.
 function normalize(text: string): string {
-  return normalizeForSnapshot(text, {
+  const normalized = normalizeForSnapshot(text, {
     pathReplacements: [
       // Mixed-case [A-Za-z0-9] because node's mkdtemp suffix is mixed-case
       // (the harness now uses FileSystem.makeTempDirectoryScoped under the
@@ -36,12 +43,18 @@ function normalize(text: string): string {
       [/\s+\[string\] \[default: "<HOME>"\]/g, ' [string] [default: "<HOME>"]'],
     ],
   })
+  return normalized.replace(CODIUS_COMMAND_PREFIX, "$1$2opencode")
 }
 
-// Top-level commands. Order matches what `opencode --help` prints today;
+function expectCodiusCommand(text: string, argv: readonly string[]): void {
+  const firstLine = text.trimStart().split(/\r?\n/, 1)[0] ?? ""
+  expect(firstLine.startsWith(`codius ${argv.join(" ")}`)).toBe(true)
+}
+
+// Top-level commands. Order matches what `codius --help` prints today;
 // keep it in that order so the snapshot file reads as a table of contents.
 // `completion` is intentionally excluded — it's a yargs built-in that emits
-// top-level help on `--help` and exits 1; not a real opencode command.
+// top-level help on `--help` and exits 1; not a real Codius command.
 const TOP_LEVEL = [
   "acp",
   "mcp",
@@ -90,7 +103,7 @@ const SUBCOMMANDS = [
 // different wraps from a 200-col local terminal.
 const SNAPSHOT_ENV = { COLUMNS: "120" }
 
-describe("opencode CLI help-text snapshots", () => {
+describe("Codius CLI help-text snapshots", () => {
   // Single test, parallel spawns. Each command's help fires under
   // `concurrency: 8` — wall-clock stays under ~10s even for ~35 commands,
   // versus ~1 minute if we serialized.
@@ -101,6 +114,7 @@ describe("opencode CLI help-text snapshots", () => {
         const topLevel = yield* opencode.spawn(["--help"], { env: SNAPSHOT_ENV })
         expect(topLevel.exitCode).toBe(0)
         expect(topLevel.stderr.endsWith("\n")).toBe(true)
+        expect(topLevel.stderr).toContain("codius")
         expect(topLevel.stderr).toContain("--mini")
         expect(topLevel.stderr).not.toContain("--thinking")
         expect(topLevel.stderr).not.toContain("--variant")
@@ -118,7 +132,7 @@ describe("opencode CLI help-text snapshots", () => {
             Effect.gen(function* () {
               const result = yield* opencode.spawn([...argv, "--help"], { env: SNAPSHOT_ENV })
               if (result.exitCode !== 0) {
-                return yield* Effect.fail(`opencode ${argv.join(" ")}: exit ${result.exitCode}`)
+                return yield* Effect.fail(`codius ${argv.join(" ")}: exit ${result.exitCode}`)
               }
               return { argv, result }
             }),
@@ -126,6 +140,7 @@ describe("opencode CLI help-text snapshots", () => {
         )
 
         for (const { argv, result } of results) {
+          expectCodiusCommand(result.stderr, argv)
           // yargs writes --help to stderr, not stdout. Snapshotting stderr
           // means our test catches the help body; stdout for these commands
           // is expected to be empty.
