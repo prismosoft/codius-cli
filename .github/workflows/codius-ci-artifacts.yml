@@ -1,0 +1,59 @@
+name: Codius focused CI diagnostics
+
+on:
+  push:
+    branches:
+      - feat/codius-productization
+    paths:
+      - .github/workflows/codius-ci-artifacts.yml
+      - packages/opencode/**
+      - packages/core/**
+      - package.json
+      - bun.lock
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Capture typecheck and unit-test output
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          set +e
+          bun typecheck > diagnostics/typecheck-full.log 2>&1
+          typecheck_status=$?
+          GITHUB_ACTIONS=false bun turbo test > diagnostics/unit-full.log 2>&1
+          unit_status=$?
+          set -e
+          printf '%s\n' "$typecheck_status" > diagnostics/typecheck.exit
+          printf '%s\n' "$unit_status" > diagnostics/unit.exit
+          tail -n 400 diagnostics/typecheck-full.log > diagnostics/typecheck-tail.log
+          tail -n 600 diagnostics/unit-full.log > diagnostics/unit-tail.log
+          {
+            echo "typecheck_exit=$typecheck_status"
+            echo "unit_exit=$unit_status"
+          } > diagnostics/summary.txt
+
+      - name: Upload focused diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: codius-cli-focused-diagnostics
+          retention-days: 3
+          path: diagnostics
