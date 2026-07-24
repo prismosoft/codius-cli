@@ -16,8 +16,6 @@ import { Effect } from "effect"
 import { cliIt } from "../../lib/cli-process"
 import { normalizeForSnapshot, PATH_SEP } from "../../lib/snapshot"
 
-const CODIUS_COMMAND_PREFIX = /(^|\n)(\s*)codius(?=\s|$)/g
-
 // Composes `normalizeForSnapshot` (CRLF + tmpdir) with three help-specific
 // rules:
 //
@@ -29,10 +27,9 @@ const CODIUS_COMMAND_PREFIX = /(^|\n)(\s*)codius(?=\s|$)/g
 //      path widths produce different leading-whitespace counts (or even
 //      line-wraps onto a fresh line on Windows). `\s+` matches both forms.
 //
-//   3. The public executable is asserted as `codius` before we normalize only
-//      command prefixes back to `opencode`. This preserves the large upstream
-//      structural snapshots and keeps future upstream merges reviewable while
-//      still failing immediately if the fork emits the wrong executable name.
+//   3. The public surface is asserted as Codius first, then normalized back to
+//      upstream brand tokens solely for snapshot compatibility. This avoids a
+//      600-line snapshot fork while still failing if users see upstream branding.
 function normalize(text: string): string {
   const normalized = normalizeForSnapshot(text, {
     pathReplacements: [
@@ -43,12 +40,17 @@ function normalize(text: string): string {
       [/\s+\[string\] \[default: "<HOME>"\]/g, ' [string] [default: "<HOME>"]'],
     ],
   })
-  return normalized.replace(CODIUS_COMMAND_PREFIX, "$1$2opencode")
+  return normalized
+    .replaceAll("CODIUS_", "OPENCODE_")
+    .replace(/\bCodius\b/g, "OpenCode")
+    .replace(/\bcodius\b/g, "opencode")
 }
 
 function expectCodiusCommand(text: string, argv: readonly string[]): void {
   const firstLine = text.trimStart().split(/\r?\n/, 1)[0] ?? ""
   expect(firstLine.startsWith(`codius ${argv.join(" ")}`)).toBe(true)
+  expect(text).not.toMatch(/\bopencode\b/)
+  expect(text).not.toContain("OpenCode")
 }
 
 // Top-level commands. Order matches what `codius --help` prints today;
@@ -103,7 +105,7 @@ const SUBCOMMANDS = [
 // different wraps from a 200-col local terminal.
 const SNAPSHOT_ENV = { COLUMNS: "120" }
 
-describe("Codius CLI help-text snapshots", () => {
+describe("opencode CLI help-text snapshots", () => {
   // Single test, parallel spawns. Each command's help fires under
   // `concurrency: 8` — wall-clock stays under ~10s even for ~35 commands,
   // versus ~1 minute if we serialized.
@@ -115,6 +117,8 @@ describe("Codius CLI help-text snapshots", () => {
         expect(topLevel.exitCode).toBe(0)
         expect(topLevel.stderr.endsWith("\n")).toBe(true)
         expect(topLevel.stderr).toContain("codius")
+        expect(topLevel.stderr).not.toMatch(/\bopencode\b/)
+        expect(topLevel.stderr).not.toContain("OpenCode")
         expect(topLevel.stderr).toContain("--mini")
         expect(topLevel.stderr).not.toContain("--thinking")
         expect(topLevel.stderr).not.toContain("--variant")
