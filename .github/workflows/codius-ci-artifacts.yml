@@ -1,15 +1,9 @@
 name: Codius focused CI diagnostics
 
 on:
-  push:
+  pull_request:
     branches:
-      - feat/codius-productization
-    paths:
-      - .github/workflows/codius-ci-artifacts.yml
-      - packages/opencode/**
-      - packages/core/**
-      - package.json
-      - bun.lock
+      - dev
   workflow_dispatch:
 
 permissions:
