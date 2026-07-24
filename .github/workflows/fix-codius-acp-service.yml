@@ -1,0 +1,65 @@
+name: Repair Codius ACP service
+
+on:
+  push:
+    branches:
+      - feat/codius-productization
+    paths:
+      - .github/workflows/fix-codius-acp-service.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/codius-productization
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - run: bun install --frozen-lockfile
+
+      - name: Apply guarded ACP service changes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("packages/opencode/src/acp/service.ts")
+          source = path.read_text()
+          replacements = {
+              'export const AuthMethodID = "opencode-login"': 'export const AuthMethodID = "codius-login"',
+              'description: "Run `opencode auth login` in the terminal"': 'description: "Run `codius providers login --provider codius` in the terminal"',
+              'name: "Login with opencode"': 'name: "Login with Codius"',
+              'command: "opencode",\n          args: ["auth", "login"],\n          label: "OpenCode Login",': 'command: "codius",\n          args: ["providers", "login", "--provider", "codius"],\n          label: "Codius Login",',
+              'name: "OpenCode",\n        version: InstallationVersion,': 'name: "Codius",\n        version: InstallationVersion ?? "0.0.0",',
+          }
+          for old, new in replacements.items():
+              if old not in source:
+                  raise SystemExit(f"expected source fragment not found: {old}")
+              source = source.replace(old, new, 1)
+          path.write_text(source)
+          PY
+
+      - name: Verify ACP source and typecheck
+        shell: bash
+        run: |
+          grep -F 'version: InstallationVersion ?? "0.0.0"' packages/opencode/src/acp/service.ts
+          grep -F 'name: "Codius"' packages/opencode/src/acp/service.ts
+          bun run --cwd packages/opencode typecheck
+
+      - name: Commit verified repair
+        shell: bash
+        run: |
+          git config user.name "Codius Automation"
+          git config user.email "actions@codius.ai"
+          git add packages/opencode/src/acp/service.ts
+          git commit -m "fix: expose a typed Codius ACP identity"
+          git push origin HEAD:feat/codius-productization
