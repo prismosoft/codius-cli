@@ -1,0 +1,63 @@
+name: Assert Codius CLI Release Readiness
+
+on:
+  push:
+    branches: [dev]
+    paths: [.github/workflows/codius-release-assert.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  assert-ready:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CI: "1"
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: dev, fetch-depth: 0 }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.3.14 }
+      - run: bun install --frozen-lockfile
+      - name: Validate Codius CLI release surface
+        id: validate
+        shell: bash
+        run: |
+          bun test packages/opencode/test/codius/bootstrap.test.ts
+          bun run --cwd packages/opencode typecheck
+          bun run --cwd packages/opencode build --single --skip-install --skip-embed-web-ui
+          binary="$(find packages/opencode/dist -type f -path '*/bin/codius' -perm -111 | head -n1)"; test -n "$binary"
+          "$binary" --version
+          "$binary" --help | grep -qi codius
+          "$binary" acp --help | grep -Eqi 'acp|agent client protocol'
+          grep -q 'https://api.codius.ai/v1' packages/opencode/src/codius/bootstrap.ts
+          grep -q 'https://devapi.codius.dev/v1' packages/opencode/src/codius/bootstrap.ts
+          grep -q 'CODIUS_API_KEY' packages/opencode/src/codius/bootstrap.ts
+          grep -q 'name: "Codius"' packages/opencode/src/acp/service.ts
+          test -f .github/workflows/codius-ci.yml
+          test -f .github/workflows/codius-release.yml
+          test -f docs/releasing.md
+          ! find .github/workflows -maxdepth 1 -type f \( -name 'codius-productization*' -o -name 'codius-release-gate.yml' -o -name 'codius-release-finalize.yml' -o -name 'codius-release-rescue.yml' -o -name 'codius-compatibility-repair.yml' -o -name 'codius-final-check.yml' -o -name 'codius-readiness-v*.yml' \) | grep -q .
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Write readiness manifest and self-remove
+        shell: bash
+        run: |
+          mkdir -p docs
+          cat > docs/release-ready.json <<EOF
+          {
+            "product": "Codius CLI",
+            "status": "release-ready",
+            "validated_source_sha": "${{ steps.validate.outputs.sha }}",
+            "validation_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "command": "codius",
+            "acp_command": "codius acp",
+            "production_api": "https://api.codius.ai/v1",
+            "development_api": "https://devapi.codius.dev/v1"
+          }
+          EOF
+          rm -f .github/workflows/codius-release-assert.yml
+          git config user.name "Codius CI"; git config user.email "actions@codius.ai"
+          git add -A; git commit -m "chore: publish Codius CLI release-readiness manifest"; git push origin HEAD:dev
