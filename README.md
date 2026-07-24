@@ -46,10 +46,10 @@ Codius CLI runs locally. File access, shell commands, Git operations, MCP tools,
 
 ## Codius endpoints
 
-| Environment | Website | OpenAI-compatible API |
-|---|---|---|
+| Environment | Website                  | OpenAI-compatible API          |
+| ----------- | ------------------------ | ------------------------------ |
 | Development | `https://dev.codius.dev` | `https://devapi.codius.dev/v1` |
-| Production | `https://codius.ai` | `https://api.codius.ai/v1` |
+| Production  | `https://codius.ai`      | `https://api.codius.ai/v1`     |
 
 Development and prerelease builds default to the development environment. Stable releases default to production. Every endpoint can be overridden with environment variables.
 
@@ -158,17 +158,17 @@ Codius retains OpenCode-compatible project configuration so existing agent confi
 
 Useful Codius environment variables:
 
-| Variable | Purpose |
-|---|---|
-| `CODIUS_API_KEY` | Codius API key |
-| `CODIUS_ENV` | `development` or `production` |
-| `CODIUS_API_BASE_URL` | Override the inference API base URL |
-| `CODIUS_WEB_BASE_URL` | Override the website/control-plane base URL |
-| `CODIUS_PROVIDER_CONFIG_URL` | Override the public provider-catalog endpoint |
-| `CODIUS_MODEL_CATALOG_VARIANT` | `recommended`, `all`, or `experimental` |
-| `CODIUS_DEFAULT_MODEL` | Prefer a specific Codius model on a fresh install |
-| `CODIUS_DISABLE_PROVIDER_BOOTSTRAP` | Disable automatic Codius provider injection |
-| `CODIUS_DEBUG_BOOTSTRAP` | Print provider-bootstrap diagnostics |
+| Variable                            | Purpose                                           |
+| ----------------------------------- | ------------------------------------------------- |
+| `CODIUS_API_KEY`                    | Codius API key                                    |
+| `CODIUS_ENV`                        | `development` or `production`                     |
+| `CODIUS_API_BASE_URL`               | Override the inference API base URL               |
+| `CODIUS_WEB_BASE_URL`               | Override the website/control-plane base URL       |
+| `CODIUS_PROVIDER_CONFIG_URL`        | Override the public provider-catalog endpoint     |
+| `CODIUS_MODEL_CATALOG_VARIANT`      | `recommended`, `all`, or `experimental`           |
+| `CODIUS_DEFAULT_MODEL`              | Prefer a specific Codius model on a fresh install |
+| `CODIUS_DISABLE_PROVIDER_BOOTSTRAP` | Disable automatic Codius provider injection       |
+| `CODIUS_DEBUG_BOOTSTRAP`            | Print provider-bootstrap diagnostics              |
 
 The following upstream-compatible variables remain supported where required by inherited internals and plugins:
 

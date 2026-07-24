@@ -47,8 +47,9 @@ export function resolveCodiusEndpoints(
     /\/$/,
     "",
   )
-  const api = (env.CODIUS_API_BASE_URL ??
-    (production ? "https://api.codius.ai/v1" : "https://devapi.codius.dev/v1")).replace(/\/$/, "")
+  const api = (
+    env.CODIUS_API_BASE_URL ?? (production ? "https://api.codius.ai/v1" : "https://devapi.codius.dev/v1")
+  ).replace(/\/$/, "")
   const requestedVariant = env.CODIUS_MODEL_CATALOG_VARIANT ?? "recommended"
   const variant = ["recommended", "all", "experimental"].includes(requestedVariant)
     ? (requestedVariant as CodiusEndpoints["variant"])
@@ -139,9 +140,7 @@ export async function bootstrapCodiusProvider(args: string[], env: NodeJS.Proces
     provider.npm = "@ai-sdk/openai-compatible"
     provider.env = Array.from(
       new Set([
-        ...(Array.isArray(provider.env)
-          ? provider.env.filter((item): item is string => typeof item === "string")
-          : []),
+        ...(Array.isArray(provider.env) ? provider.env.filter((item): item is string => typeof item === "string") : []),
         "CODIUS_API_KEY",
       ]),
     )
