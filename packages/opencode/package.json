@@ -2,9 +2,15 @@
   "$schema": "https://json.schemastore.org/package.json",
   "version": "1.18.4",
   "name": "opencode",
+  "description": "Codius terminal coding agent (upstream-compatible internal package)",
   "type": "module",
   "license": "MIT",
   "private": true,
+  "homepage": "https://codius.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/prismosoft/codius-cli.git"
+  },
   "scripts": {
     "typecheck": "tsgo --noEmit",
     "test": "bun test --timeout 30000 --only-failures",
@@ -16,7 +22,7 @@
     "dev:temporary": "bun run --conditions=browser ./src/temporary.ts"
   },
   "bin": {
-    "opencode": "./bin/opencode"
+    "codius": "./bin/codius"
   },
   "exports": {
     "./*": "./src/*.ts"

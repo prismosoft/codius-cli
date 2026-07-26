@@ -2,7 +2,6 @@ import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
 import { RunCommand } from "./cli/cmd/run"
 import { GenerateCommand } from "./cli/cmd/generate"
-import { ConsoleCommand } from "./cli/cmd/account"
 import { ProvidersCommand } from "./cli/cmd/providers"
 import { AgentCommand } from "./cli/cmd/agent"
 import { UpgradeCommand } from "./cli/cmd/upgrade"
@@ -29,22 +28,33 @@ import { DbCommand } from "./cli/cmd/db"
 import { errorMessage } from "./util/error"
 import { PluginCommand } from "./cli/cmd/plug"
 import { Heap } from "./cli/heap"
+import { bootstrapCodiusProvider } from "./codius/bootstrap"
 
 const args = hideBin(process.argv)
 
+await bootstrapCodiusProvider(args)
+
+function brandCliText(out: string): string {
+  return out
+    .replaceAll("OPENCODE_", "CODIUS_")
+    .replace(/\bOpenCode\b/g, "Codius")
+    .replace(/\bopencode\b/g, "codius")
+}
+
 function show(out: string) {
-  const text = out.trimStart()
-  if (!text.startsWith("opencode ")) {
+  const branded = brandCliText(out)
+  const text = branded.trimStart()
+  if (!text.startsWith("codius ")) {
     process.stderr.write(UI.logo() + EOL + EOL)
     process.stderr.write(text + EOL)
     return
   }
-  process.stderr.write(out)
+  process.stderr.write(branded)
 }
 
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
-  .scriptName("opencode")
+  .scriptName("codius")
   .wrap(100)
   .help("help", "show help")
   .alias("help", "h")
@@ -66,13 +76,14 @@ const cli = yargs(args)
   .middleware(async (opts) => {
     if (opts.printLogs) process.env.OPENCODE_PRINT_LOGS = "1"
     if (opts.logLevel) process.env.OPENCODE_LOG_LEVEL = opts.logLevel
-    if (opts.pure) {
-      process.env.OPENCODE_PURE = "1"
-    }
+    if (opts.pure) process.env.OPENCODE_PURE = "1"
 
     Heap.start()
 
     process.env.AGENT = "1"
+    process.env.CODIUS = "1"
+    process.env.CODIUS_PID = String(process.pid)
+    // Compatibility variables retained for inherited plugins and SDK packages.
     process.env.OPENCODE = "1"
     process.env.OPENCODE_PID = String(process.pid)
   })
@@ -85,7 +96,6 @@ const cli = yargs(args)
   .command(RunCommand)
   .command(GenerateCommand)
   .command(DebugCommand)
-  .command(ConsoleCommand)
   .command(ProvidersCommand)
   .command(AgentCommand)
   .command(UpgradeCommand)

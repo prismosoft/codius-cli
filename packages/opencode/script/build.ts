@@ -24,10 +24,10 @@ const plugin = createSolidTransformPlugin()
 const skipEmbedWebUi = process.argv.includes("--skip-embed-web-ui")
 
 const createEmbeddedWebUIBundle = async () => {
-  console.log(`Building Web UI to embed in the binary`)
+  console.log(`Building Web UI to embed in the Codius binary`)
   const appDir = path.join(import.meta.dirname, "../../app")
   const dist = path.join(appDir, "dist")
-  await $`OPENCODE_CHANNEL=${Script.channel} bun run --cwd ${appDir} build`
+  await $`OPENCODE_CHANNEL=${Script.channel} CODIUS_CHANNEL=${Script.channel} bun run --cwd ${appDir} build`
   const files = (await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: dist })))
     .map((file) => file.replaceAll("\\", "/"))
     .filter((file) => !file.endsWith(".map"))
@@ -143,6 +143,8 @@ if (!skipInstall) {
   await $`bun install --os="*" --cpu="*" @ff-labs/fff-bun@${pkg.dependencies["@ff-labs/fff-bun"]}`
 }
 for (const item of targets) {
+  // Keep the optional native package names compatible with upstream while the
+  // public executable and release archives are branded Codius.
   const name = [
     pkg.name,
     // changing to win32 flags npm for some reason
@@ -153,7 +155,7 @@ for (const item of targets) {
   ]
     .filter(Boolean)
     .join("-")
-  console.log(`building ${name}`)
+  console.log(`building ${name} as codius`)
   await $`mkdir -p dist/${name}/bin`
 
   const workerPath = "./src/cli/tui/worker.ts"
@@ -175,8 +177,8 @@ for (const item of targets) {
       autoloadTsconfig: true,
       autoloadPackageJson: true,
       target: name.replace(pkg.name, "bun") as any,
-      outfile: `dist/${name}/bin/opencode`,
-      execArgv: [`--user-agent=opencode/${Script.version}`, "--use-system-ca", "--"],
+      outfile: `dist/${name}/bin/codius`,
+      execArgv: [`--user-agent=codius/${Script.version}`, "--use-system-ca", "--"],
       windows: {},
     },
     files: {
@@ -203,7 +205,7 @@ for (const item of targets) {
 
   // Smoke test: only run if binary is for current platform
   if (item.os === process.platform && item.arch === process.arch && !item.abi) {
-    const binaryPath = `dist/${name}/bin/opencode`
+    const binaryPath = `dist/${name}/bin/codius`
     console.log(`Running smoke test: ${binaryPath} --version`)
     try {
       const versionOutput = await $`${binaryPath} --version`.text()
@@ -234,13 +236,15 @@ for (const item of targets) {
 
 if (Script.release) {
   for (const key of Object.keys(binaries)) {
+    const artifact = key.replace(/^opencode-/, "codius-")
     if (key.includes("linux")) {
-      await $`tar -czf ../../${key}.tar.gz *`.cwd(`dist/${key}/bin`)
+      await $`tar -czf ../../${artifact}.tar.gz *`.cwd(`dist/${key}/bin`)
     } else {
-      await $`zip -r ../../${key}.zip *`.cwd(`dist/${key}/bin`)
+      await $`zip -r ../../${artifact}.zip *`.cwd(`dist/${key}/bin`)
     }
   }
-  await $`gh release upload v${Script.version} ./dist/*.zip ./dist/*.tar.gz --clobber --repo ${process.env.GH_REPO}`
+  const repository = process.env.GH_REPO ?? "prismosoft/codius-cli"
+  await $`gh release upload v${Script.version} ./dist/*.zip ./dist/*.tar.gz --clobber --repo ${repository}`
 }
 
 export { binaries }

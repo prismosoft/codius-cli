@@ -1,21 +1,30 @@
 <p align="center">
-  <a href="https://codius.ai"><img src="assets/codius-logo.svg" alt="Codius" width="360" /></a>
+  <a href="https://codius.ai">
+    <img src="assets/codius-logo.svg" alt="Codius" width="360" />
+  </a>
 </p>
 
-<h1 align="center">Codius CLI</h1>
-<p align="center"><strong>An open-source coding agent with Codius as the default provider.</strong></p>
+<p align="center"><strong>The open-source coding agent for Codius models and every provider you already use.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/prismosoft/codius-cli/actions/workflows/codius-ci.yml"><img alt="Codius CLI CI" src="https://img.shields.io/github/actions/workflow/status/prismosoft/codius-cli/codius-ci.yml?branch=dev&style=flat-square" /></a>
-  <a href="https://github.com/prismosoft/codius-cli/releases"><img alt="Release" src="https://img.shields.io/github/v/release/prismosoft/codius-cli?display_name=tag&style=flat-square" /></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/prismosoft/codius-cli?style=flat-square" /></a>
+  <a href="https://github.com/prismosoft/codius-cli/actions"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/prismosoft/codius-cli/publish.yml?style=flat-square&branch=dev" /></a>
+  <a href="https://github.com/prismosoft/codius-cli/blob/dev/LICENSE"><img alt="License" src="https://img.shields.io/github/license/prismosoft/codius-cli?style=flat-square" /></a>
 </p>
 
-Codius CLI is derived from [OpenCode](https://github.com/anomalyco/opencode). It keeps OpenCode's mature coding loop, terminal UI, file and shell tools, sessions, MCP support, ACP server, and broad provider ecosystem while making Codius the first-party experience.
+# Codius CLI
+
+Codius CLI is a terminal coding agent derived from [OpenCode](https://github.com/anomalyco/opencode). It keeps OpenCode's agent loop, terminal UI, tools, sessions, MCP support, and broad provider ecosystem while making **Codius the first-party default provider**.
+
+The executable is:
 
 ```bash
-codius                 # interactive coding agent
-codius acp             # Agent Client Protocol server for Codius Desktop
+codius
+```
+
+The Agent Client Protocol entry point used by Codius Desktop is:
+
+```bash
+codius acp
 ```
 
 ## Product architecture
@@ -26,56 +35,59 @@ Codius Coding Plans
         ▼
 Codius API — OpenAI-compatible inference
         ▲
-        │ HTTPS
         │
 Codius CLI — local coding agent and ACP server
         ▲
-        │ ACP over local stdio
         │
-Codius Desktop — workspaces, Git, terminals and inline browser
+Codius Desktop — visual workspace, browser, terminal, Git and worktrees
 ```
 
-Repository access, edits, terminal commands, Git operations, MCP tools, and agent sessions execute locally. Only model requests and their selected context are sent to the active model provider.
+Codius CLI runs locally. File access, shell commands, Git operations, MCP tools, and agent sessions remain on the user's machine. Model requests are sent to the selected provider.
 
-## Endpoints
+## Codius endpoints
 
-| Environment | Website | OpenAI-compatible API |
-|---|---|---|
+| Environment | Website                  | OpenAI-compatible API          |
+| ----------- | ------------------------ | ------------------------------ |
 | Development | `https://dev.codius.dev` | `https://devapi.codius.dev/v1` |
-| Production | `https://codius.ai` | `https://api.codius.ai/v1` |
+| Production  | `https://codius.ai`      | `https://api.codius.ai/v1`     |
 
-Stable builds use production by default. Local, development, and prerelease builds use development unless `CODIUS_ENV=production` is set.
+Development and prerelease builds default to the development environment. Stable releases default to production. Every endpoint can be overridden with environment variables.
 
-## Install
+## Installation
 
-### Release installer
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/prismosoft/codius-cli/dev/install | bash
-```
-
-Install a specific release:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/prismosoft/codius-cli/dev/install \
-  | bash -s -- --version 1.0.0
-```
-
-### Build from source
+Release installers will be published from this repository. During development, build from source:
 
 ```bash
 git clone https://github.com/prismosoft/codius-cli.git
 cd codius-cli
 git checkout dev
 bun install
-bun run --cwd packages/opencode build --single --skip-embed-web-ui
+bun run --cwd packages/opencode build --single
 ```
 
-## Connect a Codius account
+The generated executable is named `codius`.
 
-Create an API key in the Codius dashboard. Then start `codius`, open `/connect`, select **Codius**, and paste the key.
+Once releases are enabled, the supported installer is:
 
-For headless use or Codius Desktop:
+```bash
+curl -fsSL https://raw.githubusercontent.com/prismosoft/codius-cli/dev/install | bash
+```
+
+## Connect Codius
+
+Create an API key in the Codius dashboard, then use either the interactive provider dialog or an environment variable.
+
+### Interactive
+
+Start Codius:
+
+```bash
+codius
+```
+
+Open `/connect`, select **Codius**, and paste the API key. The credential is stored locally with the same protected credential store used by the upstream agent.
+
+### Headless, CI, or Codius Desktop
 
 ```bash
 export CODIUS_API_KEY="codius_..."
@@ -89,74 +101,139 @@ $env:CODIUS_API_KEY = "codius_..."
 codius
 ```
 
-## Codius model catalog
+## Automatic model catalog
 
-Codius CLI loads qualified Codius models from the Codius integration catalog. This allows model availability and routing aliases to change without republishing the CLI. The public catalog contains model metadata only—never user credentials or infrastructure secrets.
+At startup, Codius CLI downloads the current Codius provider block from the public integration endpoint:
 
-On a fresh installation, Codius is selected by default. Once a user selects another provider or model, that explicit preference is retained.
+```text
+/integrations/opencode/provider.json?variant=recommended
+```
 
-## Other providers
+This means the CLI can receive newly qualified Codius models without a binary release. The provider block contains public model metadata only; it does not contain credentials.
 
-Codius is the default, not a lock-in. The inherited provider architecture remains available for OpenAI/Codex, Anthropic, Google, Vertex AI, Amazon Bedrock, GitHub Copilot, OpenRouter, xAI, Mistral, Groq, local models, and custom OpenAI-compatible endpoints.
+The first fresh installation selects a Codius model by default. After a user explicitly selects another provider or model, that preference is retained.
 
-Requests made with another provider use that provider's credentials and terms; they are not silently routed through Codius.
+## Provider support
+
+Codius is the default, not the only option. The fork preserves the upstream provider architecture, including API-key providers, subscription-backed providers, custom OpenAI-compatible endpoints, local models, and MCP integrations.
+
+Examples include:
+
+- Codius
+- OpenAI and Codex
+- Anthropic
+- Google and Vertex AI
+- Amazon Bedrock
+- GitHub Copilot
+- OpenRouter
+- xAI
+- Mistral
+- Groq
+- custom OpenAI-compatible providers
+
+Provider availability depends on the relevant account, API key, local runtime, and upstream terms.
 
 ## Agent Client Protocol
 
-Codius Desktop launches:
+Codius CLI includes an ACP server:
 
 ```bash
-codius acp
+codius acp --cwd /path/to/project
 ```
 
-The ACP process supplies model and mode discovery, streamed responses, session create/resume/fork/list operations, permission requests, and MCP server integration. This is how Codius Desktop can expose the same local agent with terminal, Git, worktree, and visible inline-browser tools.
+Codius Desktop launches this command and receives:
 
-## Environment variables
+- streamed assistant and reasoning events;
+- model and mode discovery;
+- session creation, resume, fork, and listing;
+- permission requests;
+- MCP server definitions;
+- tool and file-operation events.
 
-| Variable | Purpose |
-|---|---|
-| `CODIUS_API_KEY` | Codius API key |
-| `CODIUS_ENV` | `development` or `production` |
-| `CODIUS_API_BASE_URL` | Override the inference API base URL |
-| `CODIUS_WEB_BASE_URL` | Override the website/control-plane URL |
-| `CODIUS_PROVIDER_CONFIG_URL` | Override the model-catalog endpoint |
-| `CODIUS_MODEL_CATALOG_VARIANT` | `recommended`, `all`, or `experimental` |
-| `CODIUS_DEFAULT_MODEL` | Preferred initial Codius model |
-| `CODIUS_DISABLE_PROVIDER_BOOTSTRAP` | Disable Codius catalog injection |
-| `CODIUS_DEBUG_BOOTSTRAP` | Print provider-bootstrap diagnostics |
-| `CODIUS_CONFIG_DIR` | Override the Codius configuration directory |
+The desktop application can therefore present Codius as a native provider while still using the mature OpenCode-derived agent runtime.
 
-Some inherited internals continue to accept `OPENCODE_*` compatibility variables so upstream updates can be merged without a permanent repository-wide rename.
+## Configuration
+
+Codius retains OpenCode-compatible project configuration so existing agent configurations remain usable. Internal compatibility names may continue to appear in configuration schemas while the fork is kept mergeable with upstream.
+
+Useful Codius environment variables:
+
+| Variable                            | Purpose                                           |
+| ----------------------------------- | ------------------------------------------------- |
+| `CODIUS_API_KEY`                    | Codius API key                                    |
+| `CODIUS_ENV`                        | `development` or `production`                     |
+| `CODIUS_API_BASE_URL`               | Override the inference API base URL               |
+| `CODIUS_WEB_BASE_URL`               | Override the website/control-plane base URL       |
+| `CODIUS_PROVIDER_CONFIG_URL`        | Override the public provider-catalog endpoint     |
+| `CODIUS_MODEL_CATALOG_VARIANT`      | `recommended`, `all`, or `experimental`           |
+| `CODIUS_DEFAULT_MODEL`              | Prefer a specific Codius model on a fresh install |
+| `CODIUS_DISABLE_PROVIDER_BOOTSTRAP` | Disable automatic Codius provider injection       |
+| `CODIUS_DEBUG_BOOTSTRAP`            | Print provider-bootstrap diagnostics              |
+
+The following upstream-compatible variables remain supported where required by inherited internals and plugins:
+
+```text
+OPENCODE_CONFIG
+OPENCODE_CONFIG_CONTENT
+OPENCODE_CONFIG_DIR
+OPENCODE_PERMISSION
+```
 
 ## Development
 
+Requirements:
+
+- Bun matching the version in the root `package.json`
+- Git
+- ripgrep
+
+Common commands:
+
 ```bash
 bun install
-bun test packages/opencode/test/codius/bootstrap.test.ts
-bun run --cwd packages/opencode typecheck
-bun run --cwd packages/opencode build --single --skip-install --skip-embed-web-ui
+bun run dev
+bun run typecheck
+bun run --cwd packages/opencode test
+bun run --cwd packages/opencode build --single
 ```
 
-Test against development:
+Test the Codius provider against development:
 
 ```bash
-CODIUS_ENV=development CODIUS_API_KEY="codius_..." bun run dev
+CODIUS_ENV=development \
+CODIUS_API_KEY="codius_..." \
+bun run dev
 ```
 
-Permanent validation is defined in `.github/workflows/codius-ci.yml`. Release packaging is defined in `.github/workflows/codius-release.yml`; see [docs/releasing.md](docs/releasing.md).
+Test ACP locally:
 
-## Security and privacy
+```bash
+CODIUS_ENV=development \
+CODIUS_API_KEY="codius_..." \
+bun run --cwd packages/opencode src/index.ts acp --cwd "$PWD"
+```
 
-- Never place Codius server credentials, infrastructure-provider keys, or internal routing identifiers in this repository or a release artifact.
-- The local agent sends only the context required for the chosen model request.
-- Review tool permissions before allowing shell, file-write, MCP, or browser actions.
-- Use project ignore rules and secret scanning for repositories containing sensitive data.
+## Release and branding policy
+
+Public artifacts from this fork must use:
+
+- product name: **Codius CLI**;
+- executable: **`codius`**;
+- repository: `prismosoft/codius-cli`;
+- production website: `https://codius.ai`;
+- production API: `https://api.codius.ai/v1`;
+- development website: `https://dev.codius.dev`;
+- development API: `https://devapi.codius.dev/v1`.
+
+Runware credentials and routing identifiers belong only in Codius server infrastructure. They must never be embedded in this repository, a release artifact, a desktop application, or a local configuration template.
 
 ## Upstream and license
 
-Codius CLI is an independent fork of OpenCode. It preserves OpenCode's MIT license and required notices and is not produced by or affiliated with the OpenCode maintainers. Generic fixes should be contributed upstream when practical.
+Codius CLI is based on OpenCode and preserves its MIT license and required notices. It is maintained independently by Prismosoft and is not produced by or affiliated with the OpenCode maintainers.
 
-Related repositories:
+Generic fixes should be contributed upstream when practical so this fork remains maintainable. Codius-specific branding, model bootstrap, account integration, and release infrastructure stay in this repository.
 
-- [Codius](https://github.com/prismosoft/codius) — plans, accounts, billing, model catalog, and OpenAI-compatible API
-- [Codius Desktop](https://github.com/prismosoft/codius-desktop) — visual coding workspace that launches `codius acp`
+## Related projects
+
+- [Codius](https://github.com/prismosoft/codius) — plans, dashboard, model catalog, metering, billing, and OpenAI-compatible API
+- [Codius Desktop](https://github.com/prismosoft/codius-desktop) — desktop workspace that launches `codius acp`

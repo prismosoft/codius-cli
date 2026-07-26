@@ -11,8 +11,11 @@ process.env.XDG_CONFIG_HOME = path.join(exerciseGlobalRoot, "config")
 process.env.XDG_STATE_HOME = path.join(exerciseGlobalRoot, "state")
 process.env.XDG_CACHE_HOME = path.join(exerciseGlobalRoot, "cache")
 process.env.OPENCODE_DISABLE_SHARE = "true"
-export const exerciseConfigDirectory = path.join(exerciseGlobalRoot, "config", "opencode")
-export const exerciseDataDirectory = path.join(exerciseGlobalRoot, "data", "opencode")
+// Codius isolates its global directories under the "codius" app name
+// (packages/core/src/global.ts), so the exerciser must read the auth/config
+// files back from the same "codius" subdirectory the server writes to.
+export const exerciseConfigDirectory = path.join(exerciseGlobalRoot, "config", "codius")
+export const exerciseDataDirectory = path.join(exerciseGlobalRoot, "data", "codius")
 
 const preserveExerciseDatabase = !!process.env.OPENCODE_HTTPAPI_EXERCISE_DB
 export const exerciseDatabasePath =

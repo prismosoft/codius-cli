@@ -60,6 +60,10 @@ export type Error =
   | UnsupportedOperationError
   | ServiceFailureError
 
+function brandSafeMessage(message: string): string {
+  return message.replace(/\bOpenCode\b/g, "Codius").replace(/\bopencode\b/g, "codius")
+}
+
 export function toRequestError(error: Error) {
   switch (error._tag) {
     case "ACPSessionNotFoundError":
@@ -87,11 +91,11 @@ export function toRequestError(error: Error) {
           ...(error.service ? { service: error.service } : {}),
           ...(error.errorName ? { errorName: error.errorName } : {}),
         },
-        error.safeMessage,
+        brandSafeMessage(error.safeMessage),
       )
   }
 }
 
-export function fromUnknownDefect(_defect: unknown, safeMessage = "Internal service failure") {
+export function fromUnknownDefect(_defect: unknown, safeMessage = "Internal Codius service failure") {
   return new ServiceFailureError({ safeMessage })
 }

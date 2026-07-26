@@ -32,7 +32,7 @@ jobs:
           files=(README.md package.json packages/core/src/flag/flag.ts packages/core/src/global.ts packages/opencode/package.json packages/opencode/script/build.ts packages/opencode/src/index.ts packages/opencode/src/cli/ui.ts packages/opencode/src/codius/bootstrap.ts packages/opencode/src/plugin/codius.ts packages/opencode/src/plugin/index.ts packages/opencode/src/acp/service.ts packages/opencode/test/codius/bootstrap.test.ts)
           existing=(); for f in "${files[@]}"; do [[ -f "$f" ]] && existing+=("$f"); done
           bunx prettier --check "${existing[@]}"
-      - run: bun test packages/opencode/test/codius/bootstrap.test.ts
+      - run: bun test --cwd packages/opencode test/codius/bootstrap.test.ts
       - run: bun run --cwd packages/opencode typecheck
       - run: bun run --cwd packages/opencode build --single --skip-install --skip-embed-web-ui
       - name: Smoke-test Codius and ACP commands
@@ -40,9 +40,15 @@ jobs:
         run: |
           binary="$(find packages/opencode/dist -type f -path '*/bin/codius' -perm -111 | head -n 1)"
           test -n "$binary"
-          "$binary" --version
-          "$binary" --help | grep -qi codius
-          "$binary" acp --help | grep -Eqi 'acp|agent client protocol'
+          # Capture output before grepping: `grep -q` closes the pipe on first
+          # match, which sends the binary EPIPE mid-write and, under `pipefail`,
+          # fails the step even though the command succeeded.
+          version_output="$("$binary" --version)"
+          test -n "$version_output"
+          help_output="$("$binary" --help 2>&1)"
+          grep -qi codius <<<"$help_output"
+          acp_help_output="$("$binary" acp --help 2>&1)"
+          grep -Eqi 'acp|agent client protocol' <<<"$acp_help_output"
       - name: Audit Codius API contract
         shell: bash
         run: |

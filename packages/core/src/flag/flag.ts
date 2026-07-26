@@ -1,5 +1,49 @@
 import { Config } from "effect"
 
+const codiusCompatibilityKeys = [
+  "AUTO_HEAP_SNAPSHOT",
+  "GIT_BASH_PATH",
+  "CONFIG",
+  "CONFIG_CONTENT",
+  "CONFIG_DIR",
+  "DISABLE_AUTOUPDATE",
+  "ALWAYS_NOTIFY_UPDATE",
+  "DISABLE_PRUNE",
+  "DISABLE_TERMINAL_TITLE",
+  "SHOW_TTFD",
+  "DISABLE_AUTOCOMPACT",
+  "DISABLE_MODELS_FETCH",
+  "DISABLE_MOUSE",
+  "DISABLE_FFF",
+  "FAKE_VCS",
+  "SERVER_PASSWORD",
+  "SERVER_USERNAME",
+  "EXPERIMENTAL",
+  "EXPERIMENTAL_FILEWATCHER",
+  "EXPERIMENTAL_DISABLE_FILEWATCHER",
+  "EXPERIMENTAL_DISABLE_COPY_ON_SELECT",
+  "EXPERIMENTAL_WORKSPACES",
+  "EXPERIMENTAL_REFERENCES",
+  "MODELS_URL",
+  "MODELS_PATH",
+  "DB",
+  "WORKSPACE_ID",
+  "DISABLE_PROJECT_CONFIG",
+  "TUI_CONFIG",
+  "PURE",
+  "PERMISSION",
+  "PLUGIN_META_FILE",
+  "CLIENT",
+] as const
+
+for (const suffix of codiusCompatibilityKeys) {
+  const codiusKey = `CODIUS_${suffix}`
+  const opencodeKey = `OPENCODE_${suffix}`
+  if (process.env[opencodeKey] === undefined && process.env[codiusKey] !== undefined) {
+    process.env[opencodeKey] = process.env[codiusKey]
+  }
+}
+
 export function truthy(key: string) {
   const value = process.env[key]?.toLowerCase()
   return value === "true" || value === "1"
@@ -18,9 +62,6 @@ export const Flag = {
 
   OPENCODE_AUTO_HEAP_SNAPSHOT: truthy("OPENCODE_AUTO_HEAP_SNAPSHOT"),
   OPENCODE_GIT_BASH_PATH: process.env["OPENCODE_GIT_BASH_PATH"],
-  OPENCODE_CONFIG: process.env["OPENCODE_CONFIG"],
-  OPENCODE_CONFIG_CONTENT: process.env["OPENCODE_CONFIG_CONTENT"],
-  OPENCODE_DISABLE_AUTOUPDATE: truthy("OPENCODE_DISABLE_AUTOUPDATE"),
   OPENCODE_ALWAYS_NOTIFY_UPDATE: truthy("OPENCODE_ALWAYS_NOTIFY_UPDATE"),
   OPENCODE_DISABLE_PRUNE: truthy("OPENCODE_DISABLE_PRUNE"),
   OPENCODE_DISABLE_TERMINAL_TITLE: truthy("OPENCODE_DISABLE_TERMINAL_TITLE"),
@@ -49,8 +90,17 @@ export const Flag = {
   OPENCODE_WORKSPACE_ID: process.env["OPENCODE_WORKSPACE_ID"],
   OPENCODE_EXPERIMENTAL_WORKSPACES: enabledByExperimental("OPENCODE_EXPERIMENTAL_WORKSPACES"),
 
-  // Evaluated at access time (not module load) because tests, the CLI, and
-  // external tooling set these env vars at runtime.
+  // These values are intentionally evaluated at access time. Codius injects its
+  // provider catalog before the Config service first reads them.
+  get OPENCODE_CONFIG() {
+    return process.env["OPENCODE_CONFIG"]
+  },
+  get OPENCODE_CONFIG_CONTENT() {
+    return process.env["OPENCODE_CONFIG_CONTENT"]
+  },
+  get OPENCODE_DISABLE_AUTOUPDATE() {
+    return truthy("OPENCODE_DISABLE_AUTOUPDATE")
+  },
   get OPENCODE_DISABLE_PROJECT_CONFIG() {
     return truthy("OPENCODE_DISABLE_PROJECT_CONFIG")
   },
