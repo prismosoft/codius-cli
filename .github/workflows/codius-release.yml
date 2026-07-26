@@ -75,7 +75,8 @@ jobs:
           shopt -s nullglob
           count=0
           for dir in packages/opencode/dist/opencode-*; do
-            [[ -d "$dir/bin" && -f "$dir/bin/codius" ]] || continue
+            [[ -d "$dir/bin" ]] || continue
+            compgen -G "$dir/bin/codius*" >/dev/null || continue
             target="${dir##*/opencode-}"
             if [[ "$target" == windows-* ]]; then
               (cd "$dir/bin" && zip -q -r "$GITHUB_WORKSPACE/release-assets/codius-${target}.zip" codius*)
