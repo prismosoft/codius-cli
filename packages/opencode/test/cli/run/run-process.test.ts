@@ -37,6 +37,10 @@ describe("opencode run (non-interactive subprocess)", () => {
 
         const result = yield* opencode.run("use a tool", {
           extraArgs: ["--dangerously-skip-permissions"],
+          // These subprocess-spawning cases load plugins and execute a tool;
+          // under heavy parallel CI load the default 30s subprocess timeout can
+          // truncate the stream. Give headroom below the 60s outer budget.
+          timeoutMs: 45_000,
         })
 
         opencode.expectExit(result, 0)
@@ -111,7 +115,7 @@ describe("opencode run (non-interactive subprocess)", () => {
     ({ llm, opencode }) =>
       Effect.gen(function* () {
         yield* llm.text("structured output")
-        const result = yield* opencode.run("say hi", { format: "json" })
+        const result = yield* opencode.run("say hi", { format: "json", timeoutMs: 45_000 })
         opencode.expectExit(result, 0)
 
         const events = opencode.parseJsonEvents(result.stdout)
@@ -178,6 +182,7 @@ describe("opencode run (non-interactive subprocess)", () => {
         const result = yield* opencode.run("exercise json records", {
           format: "json",
           extraArgs: ["--thinking", "--dangerously-skip-permissions"],
+          timeoutMs: 45_000,
         })
 
         expect(result.exitCode).toBe(0)
@@ -223,7 +228,7 @@ describe("opencode run (non-interactive subprocess)", () => {
           }),
         )
         yield* llm.fail("provider failed")
-        const result = yield* opencode.run("fail after output", { format: "json" })
+        const result = yield* opencode.run("fail after output", { format: "json", timeoutMs: 45_000 })
 
         const events = opencode.parseJsonEvents(result.stdout)
         expect(result.exitCode).toBe(0)
