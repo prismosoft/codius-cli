@@ -21,7 +21,7 @@ The executable is:
 codius
 ```
 
-The Agent Client Protocol entry point used by Codius Desktop is:
+The Agent Client Protocol entry point used by Codius App is:
 
 ```bash
 codius acp
@@ -39,7 +39,7 @@ Codius API — OpenAI-compatible inference
 Codius CLI — local coding agent and ACP server
         ▲
         │
-Codius Desktop — visual workspace, browser, terminal, Git and worktrees
+Codius App — visual workspace, browser, terminal, Git and worktrees
 ```
 
 Codius CLI runs locally. File access, shell commands, Git operations, MCP tools, and agent sessions remain on the user's machine. Model requests are sent to the selected provider.
@@ -87,7 +87,7 @@ codius
 
 Open `/connect`, select **Codius**, and paste the API key. The credential is stored locally with the same protected credential store used by the upstream agent.
 
-### Headless, CI, or Codius Desktop
+### Headless, CI, or Codius App
 
 ```bash
 export CODIUS_API_KEY="codius_..."
@@ -141,7 +141,7 @@ Codius CLI includes an ACP server:
 codius acp --cwd /path/to/project
 ```
 
-Codius Desktop launches this command and receives:
+Codius App launches this command and receives:
 
 - streamed assistant and reasoning events;
 - model and mode discovery;
@@ -236,4 +236,4 @@ Generic fixes should be contributed upstream when practical so this fork remains
 ## Related projects
 
 - [Codius](https://github.com/CodiusAI/codius-platform) — plans, dashboard, model catalog, metering, billing, and OpenAI-compatible API
-- [Codius Desktop](https://github.com/CodiusAI/codius-app) — desktop workspace that launches `codius acp`
+- [Codius App](https://github.com/CodiusAI/codius-app) — desktop workspace that launches `codius acp`
