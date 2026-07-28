@@ -561,7 +561,7 @@
       "name": "opencode",
       "version": "1.18.9",
       "bin": {
-        "opencode": "./bin/opencode",
+        "codius": "./bin/codius",
       },
       "dependencies": {
         "@actions/core": "1.11.1",
