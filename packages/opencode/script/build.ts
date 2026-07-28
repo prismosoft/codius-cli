@@ -243,7 +243,7 @@ if (Script.release) {
       await $`zip -r ../../${artifact}.zip *`.cwd(`dist/${key}/bin`)
     }
   }
-  const repository = process.env.GH_REPO ?? "prismosoft/codius-cli"
+  const repository = process.env.GH_REPO ?? "CodiusAI/codius-cli"
   await $`gh release upload v${Script.version} ./dist/*.zip ./dist/*.tar.gz --clobber --repo ${repository}`
 }
 

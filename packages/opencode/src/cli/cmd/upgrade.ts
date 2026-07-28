@@ -5,8 +5,8 @@ import * as prompts from "@clack/prompts"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { errorMessage } from "@/util/error"
 
-const RELEASE_API = "https://api.github.com/repos/prismosoft/codius-cli/releases/latest"
-const INSTALL_SCRIPT = "https://raw.githubusercontent.com/prismosoft/codius-cli/dev/install"
+const RELEASE_API = "https://api.github.com/repos/CodiusAI/codius-cli/releases/latest"
+const INSTALL_SCRIPT = "https://raw.githubusercontent.com/CodiusAI/codius-cli/dev/install"
 
 type UpgradeMethod = "curl" | "npm" | "pnpm" | "bun" | "brew" | "choco" | "scoop"
 

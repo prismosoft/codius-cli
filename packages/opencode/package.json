@@ -9,7 +9,7 @@
   "homepage": "https://codius.ai",
   "repository": {
     "type": "git",
-    "url": "https://github.com/prismosoft/codius-cli.git"
+    "url": "https://github.com/CodiusAI/codius-cli.git"
   },
   "scripts": {
     "typecheck": "tsgo --noEmit",

@@ -31,7 +31,7 @@ jobs:
       CI: "1"
       OPENCODE_CHANNEL: latest
       CODIUS_ENV: production
-      GH_REPO: prismosoft/codius-cli
+      GH_REPO: CodiusAI/codius-cli
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -110,7 +110,7 @@ jobs:
           elif [[ "$tag" == *-* ]]; then
             prerelease="--prerelease"
           fi
-          if ! gh release view "$tag" --repo prismosoft/codius-cli >/dev/null 2>&1; then
-            gh release create "$tag" --repo prismosoft/codius-cli --title "Codius CLI $tag" --generate-notes $prerelease
+          if ! gh release view "$tag" --repo CodiusAI/codius-cli >/dev/null 2>&1; then
+            gh release create "$tag" --repo CodiusAI/codius-cli --title "Codius CLI $tag" --generate-notes $prerelease
           fi
-          gh release upload "$tag" release-assets/* --repo prismosoft/codius-cli --clobber
+          gh release upload "$tag" release-assets/* --repo CodiusAI/codius-cli --clobber

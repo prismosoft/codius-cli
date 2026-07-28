@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP="codius"
-REPOSITORY="prismosoft/codius-cli"
+REPOSITORY="CodiusAI/codius-cli"
 MUTED='\033[0;2m'
 RED='\033[0;31m'
 CYAN='\033[0;36m'
@@ -27,8 +27,8 @@ Environment:
   XDG_BIN_DIR             XDG-compatible binary directory
 
 Examples:
-  curl -fsSL https://raw.githubusercontent.com/prismosoft/codius-cli/dev/install | bash
-  curl -fsSL https://raw.githubusercontent.com/prismosoft/codius-cli/dev/install | bash -s -- --version 1.18.4
+  curl -fsSL https://raw.githubusercontent.com/CodiusAI/codius-cli/dev/install | bash
+  curl -fsSL https://raw.githubusercontent.com/CodiusAI/codius-cli/dev/install | bash -s -- --version 1.18.4
   ./install --binary /path/to/codius
 EOF
 }

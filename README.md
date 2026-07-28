@@ -7,8 +7,8 @@
 <p align="center"><strong>The open-source coding agent for Codius models and every provider you already use.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/prismosoft/codius-cli/actions"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/prismosoft/codius-cli/publish.yml?style=flat-square&branch=dev" /></a>
-  <a href="https://github.com/prismosoft/codius-cli/blob/dev/LICENSE"><img alt="License" src="https://img.shields.io/github/license/prismosoft/codius-cli?style=flat-square" /></a>
+  <a href="https://github.com/CodiusAI/codius-cli/actions"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/CodiusAI/codius-cli/publish.yml?style=flat-square&branch=dev" /></a>
+  <a href="https://github.com/CodiusAI/codius-cli/blob/dev/LICENSE"><img alt="License" src="https://img.shields.io/github/license/CodiusAI/codius-cli?style=flat-square" /></a>
 </p>
 
 # Codius CLI
@@ -58,7 +58,7 @@ Development and prerelease builds default to the development environment. Stable
 Release installers will be published from this repository. During development, build from source:
 
 ```bash
-git clone https://github.com/prismosoft/codius-cli.git
+git clone https://github.com/CodiusAI/codius-cli.git
 cd codius-cli
 git checkout dev
 bun install
@@ -70,7 +70,7 @@ The generated executable is named `codius`.
 Once releases are enabled, the supported installer is:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/prismosoft/codius-cli/dev/install | bash
+curl -fsSL https://raw.githubusercontent.com/CodiusAI/codius-cli/dev/install | bash
 ```
 
 ## Connect Codius
@@ -219,7 +219,7 @@ Public artifacts from this fork must use:
 
 - product name: **Codius CLI**;
 - executable: **`codius`**;
-- repository: `prismosoft/codius-cli`;
+- repository: `CodiusAI/codius-cli`;
 - production website: `https://codius.ai`;
 - production API: `https://api.codius.ai/v1`;
 - development website: `https://dev.codius.dev`;
@@ -235,5 +235,5 @@ Generic fixes should be contributed upstream when practical so this fork remains
 
 ## Related projects
 
-- [Codius](https://github.com/prismosoft/codius) — plans, dashboard, model catalog, metering, billing, and OpenAI-compatible API
-- [Codius Desktop](https://github.com/prismosoft/codius-desktop) — desktop workspace that launches `codius acp`
+- [Codius](https://github.com/CodiusAI/codius-platform) — plans, dashboard, model catalog, metering, billing, and OpenAI-compatible API
+- [Codius Desktop](https://github.com/CodiusAI/codius-app) — desktop workspace that launches `codius acp`
